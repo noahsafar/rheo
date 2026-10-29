@@ -12,6 +12,9 @@ import People from './views/People.jsx';
 import Meetings from './views/Meetings.jsx';
 import Deadlines from './views/Deadlines.jsx';
 import Funding from './views/Funding.jsx';
+import Disclose from './views/Disclose.jsx';
+import Inventions from './views/Inventions.jsx';
+import LabTabs from './components/LabTabs.jsx';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
 const STORAGE_KEY = 'rheo-demo-v1';
@@ -39,6 +42,8 @@ const initialState = {
   connections: {}, // memberId -> { gdrive: [folder names] }
   sent: {}, // invId -> date sent to Yale Ventures
   reports: {}, // grantId -> date a progress report was built
+  disclosures: {}, // invId -> the PI's answers in the Disclose an idea flow
+  inventionsAdded: [], // new ideas the PI disclosed that Rheo wasn't tracking yet
 };
 
 function load() {
@@ -118,6 +123,13 @@ function reducer(state, a) {
       return { ...state, sent: { ...state.sent, [a.inv]: a.date } };
     case 'report':
       return { ...state, reports: { ...state.reports, [a.grant]: a.date } };
+    case 'disclosure':
+      return {
+        ...state,
+        disclosures: { ...state.disclosures, [a.inv]: { ...(state.disclosures[a.inv] || {}), ...a.value } },
+      };
+    case 'addInvention':
+      return { ...state, inventionsAdded: [...state.inventionsAdded, a.invention] };
     case 'reset':
       return initialState;
     default:
@@ -155,14 +167,12 @@ export default function App() {
     }
   }, [state]);
 
-  const L = useMemo(() => labView(lab, state), [state.membersAdded]);
+  const L = useMemo(() => labView(lab, state), [state.membersAdded, state.inventionsAdded]);
   const files = useMemo(() => [...effectiveFiles(L, state), ...entryFiles(state)], [L, state]);
   const records = useMemo(
     () => Object.fromEntries(L.inventions.map((i) => [i.id, buildRecord(L, files, state, i.id)])),
     [L, files, state]
   );
-  // The nav shows this week's batch, not the whole backlog: the digest is meant to take five minutes.
-  const pending = Math.min(pendingCount(files), 12);
   const viewer = L.members.find((m) => m.id === state.viewer) || L.members[0];
   const pi = isPI(viewer.id);
   const ctx = { lab: L, state, dispatch, files, records, viewer };
@@ -170,12 +180,15 @@ export default function App() {
   if (!state.connected) return <Connect {...ctx} lab={lab} />;
 
   const [page, param] = route;
-  const piPages = ['', 'lab', 'invention', 'digest', 'handoff', 'people', 'funding'];
+  const piPages = ['', 'lab', 'invention', 'inventions', 'disclose', 'digest', 'handoff', 'people', 'funding'];
+  const labTabs = ['people', 'meetings', 'deadlines', 'handoff'];
   let view;
   if (!pi && piPages.includes(page || '')) {
     // Members land on their own workspace; PI-only pages are not reachable from a member account.
     view = page && page !== 'lab' ? <NoAccess viewer={viewer} /> : <MyWork {...ctx} subject={viewer} />;
   } else if (page === 'invention' && records[param]) view = <Invention {...ctx} rec={records[param]} />;
+  else if (page === 'inventions') view = <Inventions {...ctx} />;
+  else if (page === 'disclose') view = <Disclose {...ctx} invId={param} />;
   else if (page === 'digest') view = <Digest {...ctx} />;
   else if (page === 'handoff') view = <Handoff {...ctx} memberId={param} />;
   else if (page === 'people' && param) {
@@ -190,24 +203,21 @@ export default function App() {
   else view = <Lab {...ctx} />;
 
   const current = page || (pi ? 'lab' : 'me');
+  // Four plain destinations for the PI, three for members. Everything else lives inside them.
   const nav = pi
     ? [
-        ['lab', 'Overview'],
-        ['people', 'People'],
-        ['meetings', 'Lab meetings'],
-        ['deadlines', 'Deadlines'],
-        ['funding', 'Funding & Yale Ventures'],
-        ['digest', 'Digest', pending],
-        ['handoff', 'Handoffs'],
+        ['lab', 'Home', ['lab', 'me', 'digest']],
+        ['inventions', 'Inventions', ['inventions', 'invention', 'disclose']],
+        ['people', 'My lab', labTabs],
+        ['funding', 'Funding', ['funding']],
       ]
     : [
-        ['me', 'My work'],
-        ['sources', 'My sources'],
-        ['meetings', 'Lab meetings'],
-        ['deadlines', 'My deadlines'],
+        ['me', 'Home', ['me', 'sources']],
+        ['meetings', 'Lab meetings', ['meetings']],
+        ['deadlines', 'Deadlines', ['deadlines']],
       ];
-  const active = (id) => current === id || (id === 'lab' && current === 'invention');
   const signIns = L.members.filter((m) => m.status !== 'left');
+  const showLabTabs = pi && labTabs.includes(page) && !(page === 'people' && param);
 
   return (
     <div className="shell">
@@ -222,20 +232,10 @@ export default function App() {
       >
         Skip to content
       </a>
-      <header className="topbar">
-        <a className="wordmark" href={pi ? '#/lab' : '#/me'} aria-label="Rheo home">
-          <RheoMark />
-          <span>Rheo</span>
-        </a>
-        <nav aria-label="Main">
-          {nav.map(([id, label, count]) => (
-            <a key={id} href={`#/${id}`} aria-current={active(id) ? 'page' : undefined}>
-              {label} {count > 0 && <span className="count">{count}</span>}
-            </a>
-          ))}
-        </nav>
-        <label className="viewer">
-          <span className="viewer-label">Signed in as</span>
+      <div className="demo-bar">
+        <span>Demo with made-up data.</span>
+        <label>
+          <span>See Rheo as</span>
           <select
             value={viewer.id}
             onChange={(e) => {
@@ -250,14 +250,37 @@ export default function App() {
             ))}
           </select>
         </label>
+      </div>
+      <header className="topbar">
+        <a className="wordmark" href={pi ? '#/lab' : '#/me'} aria-label="Rheo home">
+          <RheoMark />
+          <span>Rheo</span>
+        </a>
+        <nav aria-label="Main">
+          {nav.map(([id, label, match]) => (
+            <a key={id} href={`#/${id}`} aria-current={match.includes(current) ? 'page' : undefined}>
+              {label}
+            </a>
+          ))}
+        </nav>
+        {pi ? (
+          <a className="btn primary header-cta" href="#/disclose">
+            Disclose an idea
+          </a>
+        ) : (
+          <a className="btn primary header-cta" href="#/me" onClick={() => setTimeout(() => document.getElementById('log-h')?.scrollIntoView({ block: 'start' }), 50)}>
+            Log work
+          </a>
+        )}
       </header>
+      {showLabTabs && <LabTabs current={page} />}
       <main id="main" tabIndex={-1}>
         {view}
       </main>
       <footer className="footer">
         <span>
           Rheo prototype on a synthetic lab. Files stay in the lab's own storage; Rheo keeps links and the record.
-          Switch "Signed in as" to see what each person sees.
+          Use "See Rheo as" at the top to see what each person sees.
         </span>
         <button
           className="link"

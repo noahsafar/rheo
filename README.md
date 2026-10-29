@@ -34,9 +34,15 @@ Then open the address it prints (usually http://localhost:5173).
 | Handoffs | Offboarding for someone leaving, recovery for people who already left |
 | Export | One-click disclosure package: readable document, records index CSV, structured intake JSON |
 
+### Disclose an idea
+
+The PI's main action, always one click away in the header. Six plain questions, one per screen: what the idea is, who worked on it, when it started, who has seen it, who paid for it, then check and send. Rheo fills in what it already knows from the lab's records, every question accepts "I'm not sure", and answers save as you go. The PI never gathers files: Rheo attaches the evidence and lists anything Yale Ventures may ask about.
+
+The PI's header has four items: **Home** (what needs them this week), **Inventions**, **My lab** (people, lab meetings, deadlines, people leaving) and **Funding**. Members get **Home**, **Lab meetings** and **Deadlines**, plus a **Log work** button.
+
 ### Lab workspace: two kinds of account
 
-Use **Signed in as** in the top right to switch between the PI and any lab member. In the real product the NetID sign-in decides this.
+Use **See Rheo as** in the dark strip at the top to switch between the PI and any lab member. In the real product the NetID sign-in decides this.
 
 **Lab members see only their own work:**
 
@@ -53,11 +59,12 @@ Pages for the whole lab show "Only the PI can see this page" to members.
 
 | Screen | What it does |
 |---|---|
-| Overview | Adds what's coming in from members this week and what's due in the next 30 days |
+| Home | What needs the PI this week in plain words, each with one button; what's coming in from members this week and what's due in the next 30 days |
 | People | Everyone's records, connections and pending confirmations; add a member and send an invite; open any member's page |
 | Lab meetings | Who presents when, which decks are missing, past decks on file; schedule meetings |
 | Deadlines | Grant reports, Yale Ventures disclosures, compliance, public-disclosure warnings and lab milestones; assign them to people |
-| Funding & Yale Ventures | Send each invention's disclosure to Yale Ventures; build a grant progress report draft from the record since the last report |
+| Inventions | Each invention's status and a Disclose button |
+| Funding | Build a grant progress report draft from the record since the last report; see each disclosure's status |
 
 Everything members add (log entries, notebook pages, slides) becomes a record on the invention, so it raises the readiness score. Try it: sign in as Tom Brandt, log a "New idea" on the sweat patch, then switch back to Elena and watch the score move from 57.
 

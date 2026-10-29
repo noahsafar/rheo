@@ -11,73 +11,17 @@ export default function Funding({ lab, files, records, state, dispatch }) {
   const today = lab.lab.today;
   const meetings = allMeetings(state);
 
-  const send = (invId) => {
-    dispatch({ type: 'sent', inv: invId, date: today });
-    for (const d of allDeadlines(state))
-      if (d.action === 'disclosure' && d.invention === invId) dispatch({ type: 'deadlineDone', id: d.id, value: true });
-  };
-
   return (
     <div className="page">
       <section className="page-head">
-        <h1>Funding & Yale Ventures</h1>
+        <h1>Funding</h1>
         <p className="lede">
-          What leaves the lab: invention disclosures for Yale Ventures and progress reports for funders, built from
-          the same record your lab keeps every week.
+          Progress reports for your grants and the status of each disclosure, built from the records your lab already
+          keeps.
         </p>
       </section>
 
-      <section aria-labelledby="yv-h" className="block tight">
-        <h2 id="yv-h">Invention disclosures</h2>
-        <p className="muted">
-          Send when the record is ready. Anything still open is listed at the top of the package, so Yale Ventures
-          knows what's coming instead of asking.
-        </p>
-        <div className="inv-grid">
-          {lab.inventions.map((inv) => {
-            const rec = records[inv.id];
-            const sent = state.sent[inv.id];
-            const due = allDeadlines(state).find((d) => d.action === 'disclosure' && d.invention === inv.id);
-            return (
-              <article key={inv.id} className="card disclosure">
-                <Readiness score={rec.score} checks={rec.checks} compact />
-                <h3>
-                  <a href={`#/invention/${inv.id}`}>{rec.name}</a>
-                </h3>
-                <p className="muted small">
-                  {rec.confirmed.length} confirmed records, {rec.gaps.length} open{' '}
-                  {rec.gaps.length === 1 ? 'item' : 'items'}
-                  {rec.retrievable ? `, ${rec.retrievable.pct}% retrievable today` : ''}.
-                  {due && !sent ? ` Due to Yale Ventures ${formatDate(due.date, { month: 'short', day: 'numeric' })}.` : ''}
-                </p>
-                {sent ? (
-                  <p className="sent" role="status">
-                    Sent to Yale Ventures {formatDate(sent)}. They see the same record, so follow-up questions point to
-                    specific files.
-                  </p>
-                ) : null}
-                <div className="gap-actions">
-                  <button className="btn small" onClick={() => setExporting(inv.id)}>
-                    Review package
-                  </button>
-                  {!sent && (
-                    <button
-                      className={`btn small ${rec.score >= 90 ? 'primary' : ''}`}
-                      onClick={() => {
-                        if (rec.gaps.length === 0 || confirm(`${rec.gaps.length} open items will be listed in the package. Send anyway?`)) send(inv.id);
-                      }}
-                    >
-                      Send to Yale Ventures
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section aria-labelledby="grants-h" className="block">
+      <section aria-labelledby="grants-h" className="block tight">
         <h2 id="grants-h">Grants and reports</h2>
         <p className="muted">
           Each report draft pulls in what was done since the last one: results, protocols, who did the work, what was
@@ -149,6 +93,51 @@ export default function Funding({ lab, files, records, state, dispatch }) {
             );
           })}
         </ul>
+      </section>
+
+      <section aria-labelledby="yv-h" className="block">
+        <h2 id="yv-h">Invention disclosures</h2>
+        <p className="muted">
+          Send when the record is ready. Anything still open is listed at the top of the package, so Yale Ventures
+          knows what's coming instead of asking.
+        </p>
+        <div className="inv-grid">
+          {lab.inventions.map((inv) => {
+            const rec = records[inv.id];
+            const sent = state.sent[inv.id];
+            const due = allDeadlines(state).find((d) => d.action === 'disclosure' && d.invention === inv.id);
+            return (
+              <article key={inv.id} className="card disclosure">
+                <Readiness score={rec.score} checks={rec.checks} compact />
+                <h3>
+                  <a href={`#/invention/${inv.id}`}>{rec.name}</a>
+                </h3>
+                <p className="muted small">
+                  {rec.confirmed.length} confirmed records, {rec.gaps.length} open{' '}
+                  {rec.gaps.length === 1 ? 'item' : 'items'}
+                  {rec.retrievable ? `, ${rec.retrievable.pct}% retrievable today` : ''}.
+                  {due && !sent ? ` Due to Yale Ventures ${formatDate(due.date, { month: 'short', day: 'numeric' })}.` : ''}
+                </p>
+                {sent ? (
+                  <p className="sent" role="status">
+                    Sent to Yale Ventures {formatDate(sent)}. They see the same record, so follow-up questions point to
+                    specific files.
+                  </p>
+                ) : null}
+                <div className="gap-actions">
+                  <button className="btn small" onClick={() => setExporting(inv.id)}>
+                    Review package
+                  </button>
+                  {!sent && (
+                    <a className="btn small primary" href={`#/disclose/${inv.id}`}>
+                      {state.disclosures[inv.id]?.step ? 'Continue disclosure' : 'Disclose'}
+                    </a>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       {exporting && (

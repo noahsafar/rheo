@@ -1,5 +1,5 @@
 import { digest, formatDate, formatMonth, daysBetween } from '../lib/record.js';
-import Readiness, { StatusIcon } from '../components/Readiness.jsx';
+import { StatusIcon } from '../components/Readiness.jsx';
 import { allDeadlines, allMeetings, recentActivity, slidesFor } from '../lib/workspace.js';
 import { DEADLINE_TYPES } from '../data/workspace.js';
 import { DueDate } from './MyWork.jsx';
@@ -7,46 +7,73 @@ import { DueDate } from './MyWork.jsx';
 export default function Lab({ lab, files, records, state, dispatch }) {
   const weekly = digest(lab, files);
   const recs = lab.inventions.map((i) => records[i.id]);
+  const first = lab.lab.pi.split(' ')[0];
+  const todo = needsYou({ lab, files, records, state, weekly });
 
   return (
-    <div className="page">
+    <div className="page home">
       <section className="page-head">
-        <h1>{lab.lab.name}</h1>
+        <h1>Welcome back, {first}</h1>
         <p className="lede">
-          {lab.lab.pi}, {lab.lab.department}. Rheo is tracking {recs.length} inventions across{' '}
-          {lab.files.length.toLocaleString()} records in {lab.sources.length} tools.
+          Rheo keeps your lab's records organized by invention, so you're ready whenever Yale Ventures or a funder asks.
         </p>
       </section>
 
+      <a className="disclose-hero" href="#/disclose">
+        <span>
+          <strong>Have an idea worth protecting?</strong>
+          <span className="stack">Tell Yale Ventures in about ten minutes. Rheo fills in most of it for you.</span>
+        </span>
+        <span className="btn primary big">Disclose an idea</span>
+      </a>
+
       <DemoGuide lab={lab} records={records} state={state} dispatch={dispatch} />
 
-      {weekly.length > 0 && (
-        <a className="callout" href="#/digest">
-          <span>
-            <strong>{weekly.length} matches to confirm this week.</strong> About 5 minutes.
-          </span>
-          <span className="callout-go">Open digest</span>
-        </a>
-      )}
+      <section aria-labelledby="todo-h" className="block tight">
+        <h2 id="todo-h">Needs you</h2>
+        {todo.length === 0 ? (
+          <p className="empty muted">Nothing right now. Rheo will let you know when something comes up.</p>
+        ) : (
+          <ul className="todo">
+            {todo.map((x) => (
+              <li key={x.id} className={x.urgent ? 'urgent' : ''}>
+                <div>
+                  <strong>{x.title}</strong>
+                  <span className="muted stack">{x.note}</span>
+                </div>
+                <a className="btn" href={x.href}>
+                  {x.action}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-      <section aria-labelledby="inv-h" className="block">
-        <h2 id="inv-h">Inventions</h2>
+      <section aria-labelledby="inv-h" className="block tight">
+        <div className="section-head">
+          <h2 id="inv-h">Inventions</h2>
+          <a className="small" href="#/inventions">
+            See all
+          </a>
+        </div>
         <div className="inv-grid">
           {recs.map((r) => (
-            <a key={r.inv.id} className="inv-card" href={`#/invention/${r.inv.id}`}>
-              <Readiness score={r.score} checks={r.checks} compact />
-              <div className="inv-card-body">
-                <h3>{r.name}</h3>
-                <p className="muted">
-                  {r.inv.stage}. {r.confirmed.length} confirmed records, {r.inv.contributors.length} contributors, since{' '}
-                  {formatMonth(r.inv.started)}.
-                </p>
-                {r.gaps.slice(0, 2).map((g) => (
-                  <p key={g.id} className={`gap-line sev-${g.severity}`}>
-                    {g.title}
-                  </p>
-                ))}
-                {r.gaps.length > 2 && <p className="muted small">and {r.gaps.length - 2} more open items</p>}
+            <a key={r.inv.id} className="inv-card simple" href={`#/invention/${r.inv.id}`}>
+              <h3>{r.name}</h3>
+              <p className={`status-line ${state.sent[r.inv.id] ? 'ok' : ''}`}>
+                {state.sent[r.inv.id]
+                  ? `Sent to Yale Ventures ${formatDate(state.sent[r.inv.id])}`
+                  : r.score >= 75
+                    ? 'Ready to disclose'
+                    : 'Still collecting records'}
+              </p>
+              <div className="mini-score">
+                <span className="tnum">{r.score}</span>
+                <span className="bar" aria-hidden="true">
+                  <span style={{ width: `${r.score}%` }} />
+                </span>
+                <span className="muted small">ready</span>
               </div>
             </a>
           ))}
@@ -54,48 +81,57 @@ export default function Lab({ lab, files, records, state, dispatch }) {
       </section>
 
       <LabPulse lab={lab} files={files} state={state} />
-
-      <section aria-labelledby="people-h" className="block">
-        <h2 id="people-h">People</h2>
-        <table className="table">
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Role</th>
-              <th scope="col">Status</th>
-              <th scope="col">Works on</th>
-              <th scope="col">
-                <span className="sr-only">Action</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {lab.members.map((m) => {
-              const on = lab.inventions.filter((i) => i.contributors.some((c) => c.member === m.id));
-              const h = state.handoffs[m.id];
-              return (
-                <tr key={m.id} className={m.status === 'left' ? 'row-left' : ''}>
-                  <th scope="row">{m.name}</th>
-                  <td>{m.role}</td>
-                  <td>
-                    <MemberStatus m={m} today={lab.lab.today} handoff={h} />
-                  </td>
-                  <td>{on.length ? on.map((i) => i.short).join(', ') : <span className="muted">Other projects</span>}</td>
-                  <td className="right">
-                    {m.status !== 'active' && on.length > 0 && (
-                      <a className="btn small" href={`#/handoff/${m.id}`}>
-                        {h?.done ? 'View handoff' : m.status === 'leaving' ? 'Start handoff' : 'Recover records'}
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
     </div>
   );
+}
+
+// The few things only the PI can do this week, in plain words, each with one button.
+function needsYou({ lab, files, records, state, weekly }) {
+  const today = lab.lab.today;
+  const out = [];
+  const due = allDeadlines(state).filter((d) => d.action === 'disclosure' && !d.done && !state.sent[d.invention]);
+  for (const d of due) {
+    const days = daysBetween(today, d.date);
+    out.push({
+      id: d.id,
+      urgent: days <= 21,
+      title: `Send the ${records[d.invention]?.inv.short ?? 'invention'} to Yale Ventures`,
+      note: `Due ${formatDate(d.date, { month: 'long', day: 'numeric' })}. About ten minutes.`,
+      href: `#/disclose/${d.invention}`,
+      action: state.disclosures[d.invention]?.step ? 'Continue' : 'Start',
+    });
+  }
+  if (weekly.length && !state.digestDone)
+    out.push({
+      id: 'digest',
+      title: `Check ${weekly.length} files Rheo matched this week`,
+      note: 'Say yes or no to each one. About five minutes.',
+      href: '#/digest',
+      action: 'Check files',
+    });
+  for (const m of lab.members.filter((m) => m.status === 'leaving' && !state.handoffs[m.id]?.done)) {
+    out.push({
+      id: `leave-${m.id}`,
+      urgent: daysBetween(today, m.end) <= 60,
+      title: `${m.name} leaves ${formatDate(m.end, { month: 'long', day: 'numeric' })}`,
+      note: 'Make sure their work stays with the lab.',
+      href: `#/handoff/${m.id}`,
+      action: 'Start handoff',
+    });
+  }
+  const atRisk = files.filter((f) => f.atRisk);
+  if (atRisk.length) {
+    const owner = lab.members.find((m) => m.id === atRisk[0].owner);
+    out.push({
+      id: 'atrisk',
+      urgent: true,
+      title: `${owner.name.split(' ')[0]}'s old files will be deleted ${formatDate(owner.accountDeletion, { month: 'long', day: 'numeric' })}`,
+      note: `${atRisk.length} design files for the ${records[atRisk[0].invention]?.inv.short ?? 'invention'}. One click copies them to the lab.`,
+      href: `#/invention/${atRisk[0].invention}`,
+      action: 'Save them',
+    });
+  }
+  return out.slice(0, 5);
 }
 
 // What's coming in from members and what's due, so the PI sees the lab at a glance.
@@ -115,7 +151,7 @@ function LabPulse({ lab, files, state }) {
         {activity.length === 0 ? (
           <p className="muted">
             Nothing logged in Rheo yet this week. When members log work, add notebook pages or upload slides, it shows up
-            here and in the invention records. Try it: switch "Signed in as" to Tom Brandt.
+            here and in the invention records. Try it: use "See Rheo as" at the top to pick Tom Brandt.
           </p>
         ) : (
           <ul className="feed">
@@ -192,10 +228,10 @@ function DemoGuide({ lab, records, state, dispatch }) {
       note: 'Work through its open items.',
     },
     {
-      done: !!state.exported[inv.id],
-      href: `#/invention/${inv.id}`,
-      label: 'Export the disclosure package',
-      note: 'What Yale Ventures receives.',
+      done: !!state.sent[inv.id],
+      href: `#/disclose/${inv.id}`,
+      label: 'Disclose it to Yale Ventures',
+      note: 'Six plain questions. Rheo fills in most answers.',
     },
   ];
   const doneCount = steps.filter((s) => s.done).length;

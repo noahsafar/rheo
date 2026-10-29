@@ -12,7 +12,7 @@ export default function Invention({ lab, rec, state, dispatch }) {
       <section className="page-head with-action">
         <div>
           <p className="crumb">
-            <a href="#/lab">{lab.lab.name}</a> / Invention
+            <a href="#/inventions">Inventions</a> / {rec.inv.short}
           </p>
           <h1>{rec.name}</h1>
           <p className="lede">{rec.inv.summary}</p>
@@ -21,9 +21,18 @@ export default function Invention({ lab, rec, state, dispatch }) {
             {rec.confirmed.length} confirmed records and {rec.suggested.length} waiting for review.
           </p>
         </div>
-        <button className="btn primary" onClick={() => setExporting(true)}>
-          Export disclosure package
-        </button>
+        <div className="head-actions">
+          {state.sent[rec.inv.id] ? (
+            <span className="pill ok">Sent to Yale Ventures</span>
+          ) : (
+            <a className="btn primary" href={`#/disclose/${rec.inv.id}`}>
+              Disclose to Yale Ventures
+            </a>
+          )}
+          <button className="btn" onClick={() => setExporting(true)}>
+            Download package
+          </button>
+        </div>
       </section>
 
       <div className="two-col">

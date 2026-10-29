@@ -10,10 +10,13 @@ export const isPI = (viewer) => viewer === PI_ID;
 export function labView(lab, state) {
   const added = state.membersAdded || [];
   const members = [...lab.members.map((m) => ({ ...m, email: contacts[m.id] })), ...added];
-  const inventions = lab.inventions.map((inv) => ({
+  const inventions = [...lab.inventions, ...(state.inventionsAdded || [])].map((inv) => ({
     ...inv,
     contributors: [
-      ...inv.contributors,
+      // A new idea's contributors are whoever the PI ticked in the disclosure.
+      ...(inv.isNew
+        ? (state.disclosures?.[inv.id]?.people || [PI_ID]).map((id) => ({ member: id, roles: ['Contributor'] }))
+        : inv.contributors),
       ...added.filter((m) => m.inventions?.includes(inv.id)).map((m) => ({ member: m.id, roles: ['Data'] })),
     ],
   }));

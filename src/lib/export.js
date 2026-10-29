@@ -169,3 +169,37 @@ export function progressReportMarkdown(lab, grant, { records, files, meetings, s
   }
   return L.join('\n');
 }
+
+// The PI's own answers from "Disclose an idea", followed by the evidence package Rheo assembled.
+export function disclosureMarkdown(lab, rec, a, grants) {
+  const name = (id) => lab.members.find((m) => m.id === id)?.name ?? id;
+  const said = { yes: 'Yes', no: 'No', unsure: 'Not sure', '': 'Not answered' };
+  const L = [];
+  L.push(`# Invention disclosure: ${a.title || rec.name}`);
+  L.push('');
+  L.push(`Submitted by ${lab.lab.pi} (${lab.lab.name}) to Yale Ventures.`);
+  L.push('');
+  L.push('## In the PI\'s words');
+  L.push(`**What it does:** ${a.summary || 'Not answered'}`);
+  if (a.whatsNew) L.push(`**What makes it different:** ${a.whatsNew}`);
+  L.push('');
+  L.push(`**Who worked on it:** ${[...a.people.map(name), ...a.outside.map((o) => `${o.name}${o.org ? ` (${o.org})` : ''}`)].join(', ') || 'Not answered'}`);
+  L.push('');
+  const start =
+    a.start === 'found' && rec.keyDates[0]
+      ? `${formatDate(rec.keyDates[0].date)} (earliest record: ${rec.keyDates[0].file.name})`
+      : a.start === 'earlier' && a.startDate
+        ? `Around ${formatDate(a.startDate, { month: 'long', year: 'numeric' })}`
+        : 'Not sure';
+  L.push(`**When it started:** ${start}`);
+  L.push('');
+  L.push(`**Shared outside the lab:** ${said[a.shared]}${a.sharedNote ? `. ${a.sharedNote}` : ''}`);
+  L.push(`**Planning to present or publish soon:** ${said[a.planned]}${a.plannedNote ? `. ${a.plannedNote}` : ''}`);
+  L.push('');
+  L.push(`**Funding:** ${grants.filter((g) => a.grants.includes(g.id)).map((g) => `${g.sponsor}, ${g.title}`).join('; ') || 'None listed'}${a.otherSponsor ? `; ${a.otherSponsor}` : ''}`);
+  L.push(`**Outside materials or data used:** ${said[a.materials]}${a.materialsNote ? `. ${a.materialsNote}` : ''}`);
+  L.push('');
+  L.push('---');
+  L.push('');
+  return L.join('\n') + packageMarkdown(lab, rec).replace(/^# .*\n/, '# Evidence assembled by Rheo\n');
+}
