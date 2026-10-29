@@ -4,6 +4,8 @@ Rheo builds the record behind a lab's inventions from the tools the lab already 
 
 This repo is the first prototype, running on a synthetic lab. Every person, file and invention in it is invented.
 
+**Try it in your browser:** https://noahsafar.github.io/rheo/ (no install). The lab page has a four-step guide that takes about five minutes.
+
 How we chose this design, from constraints to the options we explored, is in [docs/solution-space.md](docs/solution-space.md).
 
 The Versatilists: Bryn, Noah, Pola, Yuto.
@@ -19,7 +21,7 @@ npm run dev
 
 Then open the address it prints (usually http://localhost:5173).
 
-`npm run build` makes a static site in `dist/` that can be hosted anywhere, including GitHub Pages.
+`npm run build` makes a static site in `dist/` that can be hosted anywhere. Every push to `main` publishes it to GitHub Pages through `.github/workflows/pages.yml`.
 
 ## What the prototype shows
 
@@ -27,8 +29,8 @@ Then open the address it prints (usually http://localhost:5173).
 |---|---|
 | Setup | Connect five tools read-only, index 1,200 records, name two inventions (about 10 minutes in real life) |
 | Lab | Readiness score per invention, who has left, who is leaving |
-| Invention | Readiness checklist, open items with fixes, timeline by contributor, contributor ledger, every record |
-| Weekly digest | 12 ranked matches to confirm or reject, including two false positives (about 5 minutes) |
+| Invention | Readiness checklist, open items with fixes, timeline by contributor, contributor ledger, every record, and the pilot metric: share of records the lab can open without contacting someone who left |
+| Weekly digest | 12 ranked matches to confirm or reject, including two false positives (about 5 minutes). Also shown as the Monday email the PI would get, with the same buttons |
 | Handoffs | Offboarding for someone leaving, recovery for people who already left |
 | Export | One-click disclosure package: readable document, records index CSV, structured intake JSON |
 
