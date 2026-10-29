@@ -15,6 +15,7 @@ import Funding from './views/Funding.jsx';
 import Disclose from './views/Disclose.jsx';
 import Inventions from './views/Inventions.jsx';
 import LabTabs from './components/LabTabs.jsx';
+import QuickNote from './components/QuickNote.jsx';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
 const STORAGE_KEY = 'rheo-demo-v1';
@@ -277,6 +278,12 @@ export default function App() {
       <main id="main" tabIndex={-1}>
         {view}
       </main>
+      <QuickNote
+        lab={L}
+        viewer={viewer}
+        dispatch={dispatch}
+        inventions={pi ? L.inventions : L.inventions.filter((i) => i.contributors.some((c) => c.member === viewer.id))}
+      />
       <footer className="footer">
         <span>
           Rheo prototype on a synthetic lab. Files stay in the lab's own storage; Rheo keeps links and the record.

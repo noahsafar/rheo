@@ -19,6 +19,7 @@ export default function RecordRow({ f, lab, dispatch, showInvention = false, onR
           {(f.atRisk || f.personalStorage) && <span className="warn-text">, not in lab storage</span>}
         </p>
         {f.snippet && <p className="snippet">{f.snippet}</p>}
+        {f.audio && <audio className="record-audio" controls preload="none" src={f.audio} aria-label={`Voice note: ${f.name}`} />}
         {(supports.length > 0 || showInvention || f.flag) && (
           <p className="tags">
             {showInvention && inv && <span className="tag inv">{inv.short}</span>}

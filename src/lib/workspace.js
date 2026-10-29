@@ -45,6 +45,7 @@ export function entryFiles(state) {
       location: e.attachment ? `Lab OneDrive › Rheo › ${e.attachment}` : 'Logged in Rheo',
       logged: true,
       created: e.created,
+      audio: e.audio,
     });
   }
   for (const p of state.pages || []) {
