@@ -266,7 +266,7 @@ special({ source: 'outlook', kind: 'funding', name: 'Translational pilot fund â€
 
 // inv2: Maya's CAD is reachable today, but her account is scheduled for deletion
 for (let i = 1; i <= 3; i++) {
-  special({ source: 'onedrive', kind: 'cad', name: `lactate_patch_assembly_v${i}.SLDASM`, owner: 'm5', date: ['2024-04-11', '2024-11-02', '2025-08-19'][i - 1], invention: 'inv2', reqs: ['rtp'], match: i === 3 ? 'suggested' : 'confirmed', location: "Maya Lindqvist's OneDrive (deleted 2026-12-15)", atRisk: true, confidence: 0.94 });
+  special({ source: 'onedrive', kind: 'cad', name: `lactate_patch_assembly_v${i}.SLDASM`, owner: 'm5', date: ['2024-04-11', '2024-11-02', '2025-08-19'][i - 1], invention: 'inv2', reqs: ['rtp'], match: i === 3 ? 'suggested' : 'confirmed', location: "Maya Lindqvist's OneDrive (deleted Dec 15, 2026)", atRisk: true, confidence: 0.94 });
 }
 
 // Daniel is leaving: a few of his records still sit only in his personal OneDrive

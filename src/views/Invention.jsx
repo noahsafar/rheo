@@ -30,6 +30,10 @@ export default function Invention({ lab, rec, state, dispatch }) {
         <section aria-labelledby="ready-h" className="card">
           <h2 id="ready-h">Readiness</h2>
           <Readiness score={rec.score} checks={rec.checks} />
+          <p className="metric muted small">
+            <strong className="tnum">{rec.retrievable.pct}%</strong> of confirmed records can be opened without
+            contacting someone who left ({rec.retrievable.n} of {rec.retrievable.total}). Pilot target: 90%.
+          </p>
         </section>
         <section aria-labelledby="gaps-h" className="card">
           <h2 id="gaps-h">
@@ -105,7 +109,14 @@ export default function Invention({ lab, rec, state, dispatch }) {
 
       <Records lab={lab} rec={rec} dispatch={dispatch} />
 
-      {exporting && <ExportPanel lab={lab} rec={rec} onClose={() => setExporting(false)} />}
+      {exporting && (
+        <ExportPanel
+          lab={lab}
+          rec={rec}
+          onClose={() => setExporting(false)}
+          onDownload={() => dispatch({ type: 'exported', inv: rec.inv.id })}
+        />
+      )}
     </div>
   );
 }
@@ -114,6 +125,11 @@ function Gap({ gap, lab, rec, state, dispatch }) {
   const [drafting, setDrafting] = useState(false);
   const requested = state.requested[gap.id];
   const member = lab.members.find((m) => m.id === gap.member);
+  const draftText = member
+    ? `Hi ${member.name.split(' ')[0]},\n\nWe're preparing the invention disclosure for the ${rec.inv.short} with Yale Ventures. Rheo shows ${gap.files?.length} raw data files you mentioned in Teams are still on ${gap.files ? lab.files.find((f) => f.id === gap.files[0])?.location : 'your drive'}.\n\nCould you share that folder with the lab OneDrive this week? It's the raw data behind the patent claims.\n\nThank you,\n${lab.lab.pi}`
+    : '';
+  // The PI may edit the draft before copying it, so copy what's in the box.
+  const [draft, setDraft] = useState(draftText);
 
   let action = null;
   if (gap.action === 'move') {
@@ -155,10 +171,6 @@ function Gap({ gap, lab, rec, state, dispatch }) {
     );
   }
 
-  const draft = member
-    ? `Hi ${member.name.split(' ')[0]},\n\nWe're preparing the invention disclosure for the ${rec.name.toLowerCase()} with Yale Ventures. Rheo shows ${gap.files?.length} raw data files you mentioned in Teams are still on ${gap.files ? lab.files.find((f) => f.id === gap.files[0])?.location : 'your drive'}.\n\nCould you share that folder with the lab OneDrive this week? It's the raw data behind the patent claims.\n\nThank you,\n${lab.lab.pi}`
-    : '';
-
   return (
     <li className={`gap sev-${gap.severity}`}>
       <p className="gap-title">{gap.title}</p>
@@ -168,17 +180,14 @@ function Gap({ gap, lab, rec, state, dispatch }) {
         <div className="draft">
           <label className="field">
             <span>Draft message (Rheo doesn't send anything)</span>
-            <textarea rows={9} defaultValue={draft} />
+            <textarea rows={9} value={draft} onChange={(e) => setDraft(e.target.value)} />
           </label>
           <div className="gap-actions">
             <button
               className="btn small primary"
               onClick={() => {
-                try {
-                  navigator.clipboard?.writeText(draft);
-                } catch {
-                  /* clipboard blocked: the text is still in the box */
-                }
+                // Clipboard can be blocked (permissions, insecure origin): the text is still in the box.
+                navigator.clipboard?.writeText(draft).catch(() => {});
                 dispatch({ type: 'requested', id: gap.id, date: lab.lab.today });
                 setDrafting(false);
               }}

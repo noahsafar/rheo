@@ -17,6 +17,9 @@ const initialState = {
   noneNeeded: {}, // `${invId}:${req}` -> true
   handoffs: {}, // memberId -> { done, note, date }
   names: {}, // invId -> PI's name for the invention
+  digestDone: false, // this week's digest fully reviewed
+  exported: {}, // invId -> true once a package was downloaded
+  guideHidden: false,
 };
 
 function load() {
@@ -53,6 +56,12 @@ function reducer(state, a) {
       return { ...state, noneNeeded: { ...state.noneNeeded, [a.key]: true } };
     case 'handoff':
       return { ...state, handoffs: { ...state.handoffs, [a.member]: a.value } };
+    case 'digestDone':
+      return { ...state, digestDone: true };
+    case 'exported':
+      return { ...state, exported: { ...state.exported, [a.inv]: true } };
+    case 'guide':
+      return { ...state, guideHidden: a.hidden };
     case 'reset':
       return initialState;
     default:
@@ -111,7 +120,15 @@ export default function App() {
   const current = page || 'lab';
   return (
     <div className="shell">
-      <a className="skip" href="#main">
+      <a
+        className="skip"
+        href="#main"
+        onClick={(e) => {
+          // The router owns the hash, so jump focus instead of letting #main change the route.
+          e.preventDefault();
+          document.getElementById('main')?.focus();
+        }}
+      >
         Skip to content
       </a>
       <header className="topbar">
@@ -143,7 +160,9 @@ export default function App() {
           Synthetic lab
         </span>
       </header>
-      <main id="main">{view}</main>
+      <main id="main" tabIndex={-1}>
+        {view}
+      </main>
       <footer className="footer">
         <span>
           Rheo prototype. Read-only: Rheo indexes the lab's tools and never stores or edits files. All data is

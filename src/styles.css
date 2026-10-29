@@ -1197,7 +1197,118 @@ textarea:focus-visible {
 }
 
 /* ---------- responsive ---------- */
+/* ---------- demo guide ---------- */
+.guide {
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: grid;
+  gap: 8px;
+}
+.guide-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+}
+.guide-head h2 {
+  margin: 0;
+}
+.guide-steps {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.guide-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.guide-steps li .status-icon {
+  flex: none;
+  margin-top: 2px;
+}
+.guide-steps li.done a {
+  color: var(--ink-2);
+}
+
+/* ---------- digest as email ---------- */
+.page-head > .seg-control {
+  justify-self: start;
+}
+.email {
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.email-head {
+  display: grid;
+  gap: 2px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--paper);
+  font-size: 14px;
+}
+.email-head .muted {
+  display: inline-block;
+  width: 44px;
+}
+.email-subject {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.email-body {
+  padding: 18px 20px;
+  display: grid;
+  gap: 12px;
+}
+.email-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+}
+.email-items li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line-2);
+}
+.email-items li:last-child {
+  border-bottom: none;
+}
+.email-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.email-note {
+  padding-top: 10px;
+  border-top: 1px solid var(--line-2);
+}
+
+/* ---------- pilot metric ---------- */
+.metric {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+}
+
 @media (max-width: 860px) {
+  .guide-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .two-col {
     grid-template-columns: 1fr;
   }
@@ -1213,6 +1324,12 @@ textarea:focus-visible {
   }
 }
 @media (max-width: 600px) {
+  .guide-steps {
+    grid-template-columns: 1fr;
+  }
+  .email-items li {
+    grid-template-columns: 1fr;
+  }
   h1 {
     font-size: 27px;
   }

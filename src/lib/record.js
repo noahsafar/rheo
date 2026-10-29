@@ -233,7 +233,15 @@ export function buildRecord(lab, files, state, invId) {
     ...early.map((f) => ({ date: f.date, label: f.kind === 'public' ? `Public: ${f.name.replace(/\.pdf$/, '')}` : f.name, file: f, flag: true })),
   ].filter(Boolean);
 
-  return { inv, name, files: mine, confirmed, suggested, checks, score, gaps, ledger, keyDates };
+  // Pilot metric: share of the record the lab can open today without chasing someone who left.
+  const openable = confirmed.filter((f) => f.reachable && !f.atRisk).length;
+  const retrievable = {
+    n: openable,
+    total: confirmed.length,
+    pct: confirmed.length ? Math.floor((openable / confirmed.length) * 100) : 100,
+  };
+
+  return { inv, name, files: mine, confirmed, suggested, checks, score, gaps, ledger, keyDates, retrievable };
 }
 
 // The weekly digest: a short, ranked list so confirming takes about five minutes.

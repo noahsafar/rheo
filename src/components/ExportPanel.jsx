@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { packageMarkdown, recordsCsv, intakeJson, download, slug } from '../lib/export.js';
 
-export default function ExportPanel({ lab, rec, onClose }) {
+export default function ExportPanel({ lab, rec, onClose, onDownload }) {
   const ref = useRef(null);
   const md = packageMarkdown(lab, rec);
   const base = slug(rec.name);
+  const save = (...args) => {
+    download(...args);
+    onDownload?.();
+  };
 
   useEffect(() => {
     const prev = document.activeElement;
@@ -33,13 +37,13 @@ export default function ExportPanel({ lab, rec, onClose }) {
             : 'No open items.'}
         </p>
         <div className="downloads">
-          <button className="btn primary" onClick={() => download(`${base}-disclosure.md`, md, 'text/markdown')}>
+          <button className="btn primary" onClick={() => save(`${base}-disclosure.md`, md, 'text/markdown')}>
             Download package
           </button>
-          <button className="btn" onClick={() => download(`${base}-records-index.csv`, recordsCsv(lab, rec), 'text/csv')}>
+          <button className="btn" onClick={() => save(`${base}-records-index.csv`, recordsCsv(lab, rec), 'text/csv')}>
             Records index (.csv)
           </button>
-          <button className="btn" onClick={() => download(`${base}-intake.json`, intakeJson(lab, rec), 'application/json')}>
+          <button className="btn" onClick={() => save(`${base}-intake.json`, intakeJson(lab, rec), 'application/json')}>
             Yale Ventures intake (.json)
           </button>
         </div>
