@@ -15,6 +15,12 @@ import Funding from './views/Funding.jsx';
 import Disclose from './views/Disclose.jsx';
 import Inventions from './views/Inventions.jsx';
 import LabTabs from './components/LabTabs.jsx';
+import QuickNote from './components/QuickNote.jsx';
+import Entries from './views/Entries.jsx';
+import Entry from './views/Entry.jsx';
+import Project from './views/Project.jsx';
+import Tools from './views/Tools.jsx';
+import { SAMPLE_LOGS } from './data/sampleLogs.js';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
 const STORAGE_KEY = 'rheo-demo-v1';
@@ -33,7 +39,8 @@ const initialState = {
   // Lab workspace
   viewer: PI_ID, // who is signed in; the PI sees everything, members see only their own work
   membersAdded: [], // people the PI added
-  logs: [], // work members logged in Rheo
+  logs: SAMPLE_LOGS, // work members logged in Rheo (starts with synthetic sample entries)
+  samplesV1: true,
   pages: [], // notebook pages members photographed
   slides: {}, // meetingId -> { name, created }
   meetingsAdded: [],
@@ -49,7 +56,11 @@ const initialState = {
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? { ...initialState, ...JSON.parse(raw) } : initialState;
+    if (!raw) return initialState;
+    const saved = JSON.parse(raw);
+    // Demos saved before sample entries existed get them added once, alongside anything already logged.
+    if (!saved.samplesV1) saved.logs = [...SAMPLE_LOGS, ...(saved.logs || [])];
+    return { ...initialState, ...saved, samplesV1: true };
   } catch {
     return initialState;
   }
@@ -97,6 +108,8 @@ function reducer(state, a) {
       return { ...state, membersAdded: [...state.membersAdded, a.member] };
     case 'addLog':
       return { ...state, logs: [...state.logs, a.entry] };
+    case 'updateLog':
+      return { ...state, logs: state.logs.map((l) => (l.id === a.entry.id ? a.entry : l)) };
     case 'removeLog':
       return { ...state, logs: state.logs.filter((l) => l.id !== a.id) };
     case 'addPage':
@@ -175,7 +188,7 @@ export default function App() {
   );
   const viewer = L.members.find((m) => m.id === state.viewer) || L.members[0];
   const pi = isPI(viewer.id);
-  const ctx = { lab: L, state, dispatch, files, records, viewer };
+  const ctx = { lab: L, state, dispatch, files, records, viewer, pi };
 
   if (!state.connected) return <Connect {...ctx} lab={lab} />;
 
@@ -200,19 +213,24 @@ export default function App() {
   else if (page === 'deadlines') view = <Deadlines {...ctx} />;
   else if (page === 'me') view = pi ? <Lab {...ctx} /> : <MyWork {...ctx} subject={viewer} />;
   else if (page === 'sources') view = <Sources {...ctx} />;
+  else if (page === 'entries') view = <Entries key={route.join('/')} {...ctx} project={param} scope={route[2] || 'mine'} />;
+  else if (page === 'tools') view = <Tools key={param || 'hub'} {...ctx} toolId={param} />;
+  else if (page === 'entry') view = <Entry key={param} {...ctx} id={param} />;
+  else if (page === 'project' && L.inventions.some((i) => i.id === param))
+    view = <Project {...ctx} inv={L.inventions.find((i) => i.id === param)} />;
   else view = <Lab {...ctx} />;
 
   const current = page || (pi ? 'lab' : 'me');
   // Four plain destinations for the PI, three for members. Everything else lives inside them.
   const nav = pi
     ? [
-        ['lab', 'Home', ['lab', 'me', 'digest']],
+        ['lab', 'Home', ['lab', 'me', 'digest', 'entries', 'entry', 'tools']],
         ['inventions', 'Inventions', ['inventions', 'invention', 'disclose']],
         ['people', 'My lab', labTabs],
         ['funding', 'Funding', ['funding']],
       ]
     : [
-        ['me', 'Home', ['me', 'sources']],
+        ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project', 'tools']],
         ['meetings', 'Lab meetings', ['meetings']],
         ['deadlines', 'Deadlines', ['deadlines']],
       ];
@@ -277,6 +295,12 @@ export default function App() {
       <main id="main" tabIndex={-1}>
         {view}
       </main>
+      <QuickNote
+        lab={L}
+        viewer={viewer}
+        dispatch={dispatch}
+        inventions={pi ? L.inventions : L.inventions.filter((i) => i.contributors.some((c) => c.member === viewer.id))}
+      />
       <footer className="footer">
         <span>
           Rheo prototype on a synthetic lab. Files stay in the lab's own storage; Rheo keeps links and the record.

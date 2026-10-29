@@ -4,6 +4,8 @@ import { grants } from '../data/workspace.js';
 import { allDeadlines, newId } from '../lib/workspace.js';
 import { disclosureMarkdown, download, slug } from '../lib/export.js';
 import { go } from '../App.jsx';
+import { suggestions } from '../lib/suggest.js';
+import { did as didOf } from '../lib/entries.js';
 
 // "Disclose an idea": the PI answers six plain questions, Rheo fills in what it already knows from the
 // lab record, and the answers plus the evidence go to Yale Ventures in one step.
@@ -145,6 +147,7 @@ function Wizard({ lab, rec, state, dispatch }) {
     otherSponsor: '',
     materials: foundMta ? 'yes' : '',
     materialsNote: '',
+    suggest: true, // suggest answers from the team's work entries
     ...d,
   };
   const set = (value) => dispatch({ type: 'disclosure', inv: inv.id, value });
@@ -158,6 +161,9 @@ function Wizard({ lab, rec, state, dispatch }) {
   }, [a.step]);
 
   if (state.sent[inv.id]) return <Sent lab={lab} rec={rec} a={a} state={state} />;
+  const sug = a.suggest ? suggestions({ lab, state, rec, a }) : {};
+  const append = (prev, add) => (prev?.trim() ? `${prev.trim().replace(/[.\s]*$/, '.')} ${add}` : add);
+  const who = (e) => lab.members.find((m) => m.id === e.owner)?.name ?? 'Someone';
 
   const step = STEPS[a.step].id;
   const send = () => {
@@ -173,6 +179,12 @@ function Wizard({ lab, rec, state, dispatch }) {
   return (
     <div className="page narrow wizard">
       <StepHeader step={a.step} onJump={a.step > 0 ? toStep : null} />
+      {step !== 'review' && (
+        <label className="suggest-switch">
+          <input type="checkbox" checked={a.suggest} onChange={(e) => set({ suggest: e.target.checked })} />
+          <span>Suggest answers from the team's work entries</span>
+        </label>
+      )}
       <div className="step">
         <h2 className="q" tabIndex={-1} ref={heading}>
           {QUESTIONS[step]}
@@ -198,6 +210,22 @@ function Wizard({ lab, rec, state, dispatch }) {
                 placeholder="For example: no pump needed, lasts four weeks instead of one, costs a tenth as much"
               />
             </label>
+            {a.suggest && (
+              <TeamSuggest empty="No one has logged results that worked on this yet." has={!!sug.describe}>
+                {sug.describe && (
+                  <>
+                    <p>{sug.describe.draft}</p>
+                    <p className="muted small">{sug.describe.note}</p>
+                    <div className="sug-actions">
+                      <button type="button" className="btn small" onClick={() => set({ whatsNew: append(a.whatsNew, sug.describe.draft) })}>
+                        {a.whatsNew?.trim() ? 'Add to my answer' : 'Use this'}
+                      </button>
+                    </div>
+                    <Sources entries={sug.describe.sources} who={who} />
+                  </>
+                )}
+              </TeamSuggest>
+            )}
           </>
         )}
 
@@ -236,6 +264,30 @@ function Wizard({ lab, rec, state, dispatch }) {
                 );
               })}
             </ul>
+            {a.suggest && (
+              <TeamSuggest has={sug.people?.loggers > 0} empty="No one has logged work on this yet.">
+                {sug.people?.missing.length ? (
+                  <ul className="sug-list">
+                    {sug.people.missing.map(({ member, count, latest }) => (
+                      <li key={member.id}>
+                        <span>
+                          <strong>{member.name}</strong> logged {count} {count === 1 ? 'entry' : 'entries'} on this, most recently{' '}
+                          <a href={`#/entry/${latest.id}`} target="_blank" rel="noreferrer">
+                            {didOf(latest)}
+                          </a>
+                          .
+                        </span>
+                        <button type="button" className="btn small" onClick={() => set({ people: [...a.people, member.id] })}>
+                          Tick {member.name.split(' ')[0]}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>Everyone who logged work on this is already ticked.</p>
+                )}
+              </TeamSuggest>
+            )}
             <OutsidePeople a={a} set={set} />
           </>
         )}
@@ -267,6 +319,31 @@ function Wizard({ lab, rec, state, dispatch }) {
                 <span>Roughly when? Any date in the right month is fine.</span>
                 <input type="date" value={a.startDate} max={lab.lab.today} onChange={(e) => set({ startDate: e.target.value })} />
               </label>
+            )}
+            {a.suggest && (
+              <TeamSuggest has={!!sug.start} empty="No one has logged work on this yet.">
+                {sug.start && (
+                  <>
+                    <p>
+                      The team's earliest entry is from{' '}
+                      <strong>{formatDate(sug.start.entry.date, { month: 'long', day: 'numeric', year: 'numeric' })}</strong>:{' '}
+                      <a href={`#/entry/${sug.start.entry.id}`} target="_blank" rel="noreferrer">
+                        {didOf(sug.start.entry)}
+                      </a>{' '}
+                      by {who(sug.start.entry)}.
+                    </p>
+                    {sug.start.earlier ? (
+                      <div className="sug-actions">
+                        <button type="button" className="btn small" onClick={() => set({ start: 'earlier', startDate: sug.start.entry.date })}>
+                          Use this date
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="muted small">That's after the earliest record above, so it doesn't change the answer.</p>
+                    )}
+                  </>
+                )}
+              </TeamSuggest>
             )}
           </>
         )}
@@ -313,6 +390,50 @@ function Wizard({ lab, rec, state, dispatch }) {
                 <p className="hint">Yale Ventures will want to talk with you before then. Rheo puts this at the top of what they see.</p>
               </>
             )}
+            {a.suggest && (
+              <TeamSuggest has={!!sug.public} empty="No entries mention a talk, poster, abstract, paper or company.">
+                {sug.public && (
+                  <ul className="sug-list">
+                    {sug.public.map(({ entry, planned, summary }) => {
+                      const line = `${summary}, ${who(entry)}, ${formatDate(entry.date)}`;
+                      const usedShared = a.sharedNote?.includes(summary);
+                      const usedPlanned = a.plannedNote?.includes(summary);
+                      return (
+                        <li key={entry.id}>
+                          <span>
+                            <a href={`#/entry/${entry.id}`} target="_blank" rel="noreferrer">
+                              {summary}
+                            </a>
+                            <span className="muted small stack">
+                              {who(entry)}, {formatDate(entry.date)}
+                              {planned ? '. Sounds like it is still coming up.' : ''}
+                            </span>
+                          </span>
+                          <span className="sug-btns">
+                            <button
+                              type="button"
+                              className={`btn small ${planned ? 'quiet' : ''}`}
+                              disabled={usedShared}
+                              onClick={() => set({ shared: 'yes', sharedNote: append(a.sharedNote, line) })}
+                            >
+                              {usedShared ? 'Added' : 'Already shared'}
+                            </button>
+                            <button
+                              type="button"
+                              className={`btn small ${planned ? '' : 'quiet'}`}
+                              disabled={usedPlanned}
+                              onClick={() => set({ planned: 'yes', plannedNote: append(a.plannedNote, line) })}
+                            >
+                              {usedPlanned ? 'Added' : 'Coming up'}
+                            </button>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </TeamSuggest>
+            )}
           </>
         )}
 
@@ -354,11 +475,43 @@ function Wizard({ lab, rec, state, dispatch }) {
               </div>
             )}
             <Choices value={a.materials} onChange={(v) => set({ materials: v })} options={[['no', 'No'], ['yes', 'Yes'], ['unsure', "I'm not sure"]]} />
-            {a.materials === 'yes' && !foundMta && (
+            {a.materials === 'yes' && (!foundMta || a.materialsNote) && (
               <label className="field big-field">
                 <span>What, and from whom?</span>
                 <input value={a.materialsNote} onChange={(e) => set({ materialsNote: e.target.value })} />
               </label>
+            )}
+            {a.suggest && (
+              <TeamSuggest has={!!sug.materials} empty="No entries mention materials or samples from outside the lab.">
+                {sug.materials && (
+                  <ul className="sug-list">
+                    {sug.materials.map((e) => {
+                      const line = `${didOf(e)}${e.result ? ` (${e.result.replace(/[.\s]+$/, '')})` : ''}`;
+                      const used = a.materialsNote?.includes(didOf(e));
+                      return (
+                        <li key={e.id}>
+                          <span>
+                            <a href={`#/entry/${e.id}`} target="_blank" rel="noreferrer">
+                              {line}
+                            </a>
+                            <span className="muted small stack">
+                              {who(e)}, {formatDate(e.date)}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            className="btn small"
+                            disabled={used}
+                            onClick={() => set({ materials: 'yes', materialsNote: append(a.materialsNote, line) })}
+                          >
+                            {used ? 'Added' : 'Add to answer'}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </TeamSuggest>
             )}
           </>
         )}
@@ -493,6 +646,36 @@ function Sent({ lab, rec, a, state }) {
 }
 
 // ---------- pieces ----------
+// A suggestion drawn from the team's entries. Nothing is filled in until the PI chooses to use it.
+function TeamSuggest({ has, empty, children }) {
+  return (
+    <div className="found suggest">
+      <p className="found-label">Suggested from the team's entries</p>
+      {has ? children : <p className="muted">{empty}</p>}
+    </div>
+  );
+}
+
+function Sources({ entries, who }) {
+  return (
+    <details className="sug-sources">
+      <summary className="small">From {entries.length} {entries.length === 1 ? 'entry' : 'entries'}</summary>
+      <ul>
+        {entries.map((e) => (
+          <li key={e.id} className="small">
+            <a href={`#/entry/${e.id}`} target="_blank" rel="noreferrer">
+              {didOf(e)}
+            </a>{' '}
+            <span className="muted">
+              {who(e)}, {formatDate(e.date)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 function StepHeader({ step, onJump }) {
   return (
     <div className="step-head">

@@ -3,8 +3,11 @@ import { StatusIcon } from '../components/Readiness.jsx';
 import { allDeadlines, allMeetings, recentActivity, slidesFor } from '../lib/workspace.js';
 import { DEADLINE_TYPES } from '../data/workspace.js';
 import { DueDate } from './MyWork.jsx';
+import { RecentEntries } from '../components/WorkLog.jsx';
+import { RheoDoesIt } from './Tools.jsx';
+import LogCard from '../components/LogCard.jsx';
 
-export default function Lab({ lab, files, records, state, dispatch }) {
+export default function Lab({ lab, files, records, state, dispatch, viewer, pi }) {
   const weekly = digest(lab, files);
   const recs = lab.inventions.map((i) => records[i.id]);
   const first = lab.lab.pi.split(' ')[0];
@@ -14,10 +17,12 @@ export default function Lab({ lab, files, records, state, dispatch }) {
     <div className="page home">
       <section className="page-head">
         <h1>Welcome back, {first}</h1>
-        <p className="lede">
-          Rheo keeps your lab's records organized by invention, so you're ready whenever Yale Ventures or a funder asks.
-        </p>
       </section>
+
+      <LogCard lab={lab} viewer={viewer} onInventions={lab.inventions} dispatch={dispatch} />
+
+      <RecentEntries lab={lab} state={state} viewer={viewer} pi={pi} />
+      <RheoDoesIt />
 
       <a className="disclose-hero" href="#/disclose">
         <span>

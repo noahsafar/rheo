@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
 import RecordRow from '../components/RecordRow.jsx';
 import { formatDate, daysBetween } from '../lib/record.js';
-import { LOG_TYPES, DEADLINE_TYPES } from '../data/workspace.js';
-import { allDeadlines, allMeetings, slidesFor, connectionsFor, newId } from '../lib/workspace.js';
+import { DEADLINE_TYPES } from '../data/workspace.js';
+import { allDeadlines, allMeetings, slidesFor, connectionsFor } from '../lib/workspace.js';
 import { MemberStatus } from './Lab.jsx';
+import LogCard from '../components/LogCard.jsx';
+import { RecentEntries } from '../components/WorkLog.jsx';
+import { invName } from '../lib/entries.js';
+import { RheoDoesIt } from './Tools.jsx';
 
 // A member's workspace. Members only ever see their own; the PI can open anyone's from People.
-export default function MyWork({ lab, files, state, dispatch, viewer, subject }) {
+export default function MyWork({ lab, files, state, dispatch, viewer, subject, pi }) {
   const own = viewer.id === subject.id;
   const first = subject.name.split(' ')[0];
   const mine = useMemo(() => files.filter((f) => f.owner === subject.id), [files, subject.id]);
@@ -41,7 +45,12 @@ export default function MyWork({ lab, files, state, dispatch, viewer, subject })
       <div className="work-grid">
         <div className="work-main">
           {own ? (
-            <LogForm lab={lab} subject={subject} onInventions={onInventions} dispatch={dispatch} />
+            <>
+              <LogCard lab={lab} viewer={viewer} onInventions={onInventions} dispatch={dispatch} />
+              <MyProjects inventions={onInventions} state={state} viewer={viewer} />
+              <RecentEntries lab={lab} state={state} viewer={viewer} pi={pi} />
+              <RheoDoesIt />
+            </>
           ) : (
             <Contribution lab={lab} subject={subject} mine={mine} onInventions={onInventions} />
           )}
@@ -180,80 +189,25 @@ export function DueDate({ date, today }) {
   );
 }
 
-function LogForm({ lab, subject, onInventions, dispatch }) {
-  const blank = { title: '', body: '', date: lab.lab.today, invention: onInventions[0]?.id || '', type: 'experiment', attachment: '' };
-  const [f, setF] = useState(blank);
-  const [saved, setSaved] = useState(null);
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-
-  const submit = (e) => {
-    e.preventDefault();
-    if (!f.title.trim()) return;
-    const entry = { ...f, id: newId('log'), owner: subject.id, created: new Date().toISOString(), title: f.title.trim() };
-    dispatch({ type: 'addLog', entry });
-    const inv = lab.inventions.find((i) => i.id === f.invention);
-    setSaved(inv ? `Added to the ${inv.short} record.` : 'Added to your lab record.');
-    setF({ ...blank, invention: f.invention });
-  };
-
+// Each project the member works on, one click from the rows of what they did on it.
+function MyProjects({ inventions, state, viewer }) {
+  if (!inventions.length) return null;
   return (
-    <section className="card log-card" aria-labelledby="log-h">
-      <h2 id="log-h">Log work</h2>
-      <form onSubmit={submit} className="log-form">
-        <label className="field">
-          <span>What did you do?</span>
-          <input value={f.title} onChange={set('title')} placeholder="Ran release assay on batch 14, day 21" required />
-        </label>
-        <fieldset className="type-pick">
-          <legend className="sr-only">Type of entry</legend>
-          {LOG_TYPES.map((t) => (
-            <label key={t.id} className={f.type === t.id ? 'on' : ''}>
-              <input type="radio" name="type" value={t.id} checked={f.type === t.id} onChange={set('type')} />
-              {t.label}
-            </label>
-          ))}
-        </fieldset>
-        {f.type === 'idea' && (
-          <p className="hint small">A dated idea with your name on it can become the record of conception for a patent.</p>
-        )}
-        <label className="field">
-          <span>Details (optional)</span>
-          <textarea rows={3} value={f.body} onChange={set('body')} placeholder="Results, what changed, what's next" />
-        </label>
-        <div className="field-row">
-          <label className="field">
-            <span>Date</span>
-            <input type="date" value={f.date} max={lab.lab.today} onChange={set('date')} />
-          </label>
-          <label className="field">
-            <span>Project</span>
-            <select value={f.invention} onChange={set('invention')}>
-              {onInventions.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.short}
-                </option>
-              ))}
-              <option value="">Other lab work</option>
-            </select>
-          </label>
-        </div>
-        <label className="field">
-          <span>Attach a file (optional)</span>
-          <input
-            type="file"
-            onChange={(e) => setF({ ...f, attachment: e.target.files?.[0]?.name || '' })}
-          />
-          <span className="muted small">Saved to the lab OneDrive, not your own account, so it stays when you leave.</span>
-        </label>
-        <div className="form-foot">
-          <span className="muted small" aria-live="polite">
-            {saved}
-          </span>
-          <button className="btn primary" type="submit" disabled={!f.title.trim()}>
-            Add to record
-          </button>
-        </div>
-      </form>
+    <section aria-labelledby="proj-h" className="block tight">
+      <h2 id="proj-h">My projects</h2>
+      <div className="inv-grid">
+        {inventions.map((i) => {
+          const count = (state.logs || []).filter((e) => e.owner === viewer.id && e.invention === i.id).length;
+          return (
+            <a key={i.id} className="inv-card simple" href={`#/project/${i.id}`}>
+              <h3>{invName(state, i)}</h3>
+              <p className="muted small">
+                {count} {count === 1 ? 'entry' : 'entries'} by you
+              </p>
+            </a>
+          );
+        })}
+      </div>
     </section>
   );
 }

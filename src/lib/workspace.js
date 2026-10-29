@@ -28,23 +28,27 @@ export function labView(lab, state) {
 export function entryFiles(state) {
   const out = [];
   for (const e of state.logs || []) {
+    // "Only me" entries stay out of the lab record until the author shares them.
+    if (e.visibility === 'private') continue;
     const type = LOG_TYPES.find((t) => t.id === e.type);
     out.push({
       id: e.id,
       source: 'rheo',
       kind: 'log',
-      name: e.title,
-      snippet: e.body || undefined,
+      name: e.did ?? e.title,
+      snippet: (e.result ?? e.body) || undefined,
       owner: e.owner,
       date: e.date,
       invention: e.invention || null,
-      reqs: e.invention ? type?.reqs ?? [] : [],
+      reqs: e.invention && !e.sample ? type?.reqs ?? [] : [],
+      entry: true,
       match: 'confirmed',
       confidence: 1,
       reachable: true,
       location: e.attachment ? `Lab OneDrive › Rheo › ${e.attachment}` : 'Logged in Rheo',
       logged: true,
       created: e.created,
+      audio: e.audio,
     });
   }
   for (const p of state.pages || []) {
