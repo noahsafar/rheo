@@ -106,3 +106,66 @@ export function download(filename, text, type = 'text/plain') {
 }
 
 export const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 48);
+
+// A grant progress report draft: what the lab did on the funded work since the last report.
+export function progressReportMarkdown(lab, grant, { records, files, meetings, sent, slidesFor }) {
+  const since = grant.lastReport;
+  const name = (id) => lab.members.find((m) => m.id === id)?.name ?? id;
+  const L = [];
+  L.push(`# ${grant.report}: ${grant.title}`);
+  L.push('');
+  L.push(`Sponsor: ${grant.sponsor} (${grant.number})`);
+  L.push(`Award period: ${formatDate(grant.start)} to ${formatDate(grant.end)}`);
+  L.push(`Reporting period: ${formatDate(since)} to ${formatDate(lab.lab.today)}`);
+  L.push(`Principal investigator: ${lab.lab.pi}, ${lab.lab.name}`);
+  L.push('');
+  L.push('> Draft built by Rheo from the lab record (synthetic demo data). Edit before submitting.');
+  L.push('');
+  for (const invId of grant.inventions) {
+    const rec = records[invId];
+    const recent = rec.confirmed.filter((f) => f.date >= since);
+    L.push(`## ${rec.name}`);
+    L.push(rec.inv.summary);
+    L.push('');
+    L.push(`- ${recent.length} new records this period (${recent.filter((f) => f.reqs.includes('rtp')).length} results, ${recent.filter((f) => f.reqs.includes('protocol')).length} protocols)`);
+    L.push(`- Readiness for patent disclosure: ${rec.score}/100`);
+    L.push(`- Invention disclosure to Yale Ventures: ${sent[invId] ? `sent ${formatDate(sent[invId])}` : 'not yet sent'}`);
+    if (grant.federal)
+      L.push('- Federally funded: Yale Ventures reports the invention to the agency once it is disclosed.');
+    L.push('');
+    L.push('### People who worked on it');
+    for (const c of rec.ledger) {
+      const n = recent.filter((f) => f.owner === c.member.id).length;
+      if (n) L.push(`- ${c.member.name}, ${c.member.role}: ${c.roles.join(', ').toLowerCase()} (${n} ${n === 1 ? 'record' : 'records'})`);
+    }
+    L.push('');
+    const shown = meetings.filter((m) => m.invention === invId && m.date >= since && m.date <= lab.lab.today);
+    if (shown.length) {
+      L.push('### Presented at lab meeting');
+      for (const m of shown) L.push(`- ${formatDate(m.date)}: ${m.topic} (${name(m.presenter)})${slidesFor(m) ? `, slides: ${slidesFor(m)}` : ''}`);
+      L.push('');
+    }
+    const pub = rec.confirmed.filter((f) => f.kind === 'public');
+    if (pub.length) {
+      L.push('### Abstracts, posters and theses');
+      for (const f of pub) L.push(`- ${formatDate(f.date)}: ${f.name.replace(/\.pdf$/, '')}`);
+      L.push('');
+    }
+    const results = recent
+      .filter((f) => f.reqs.length && !['data', 'figure', 'analysis'].includes(f.kind))
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+      .slice(0, 10);
+    if (results.length) {
+      L.push('### Notebook entries and logged results');
+      for (const f of results) L.push(`- ${formatDate(f.date)}: ${f.name}${f.snippet ? `. ${f.snippet}` : ''}`);
+      L.push('');
+    }
+    const data = recent.filter((f) => ['data', 'figure', 'analysis'].includes(f.kind));
+    if (data.length) {
+      L.push(`### Data files`);
+      L.push(`${data.length} data files, figures and analysis scripts were added this period. The full list is in the records index.`);
+      L.push('');
+    }
+  }
+  return L.join('\n');
+}

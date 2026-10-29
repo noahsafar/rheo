@@ -24,6 +24,8 @@ export const KIND_LABEL = {
   slides: 'Slides',
   reading: 'Reading',
   writing: 'Writing',
+  log: 'Logged in Rheo',
+  scan: 'Notebook page',
 };
 
 // Apply the PI's decisions (confirm, reject, move to lab storage) on top of the generated files.

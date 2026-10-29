@@ -6,6 +6,13 @@ import Lab from './views/Lab.jsx';
 import Invention from './views/Invention.jsx';
 import Digest from './views/Digest.jsx';
 import Handoff from './views/Handoff.jsx';
+import MyWork from './views/MyWork.jsx';
+import Sources from './views/Sources.jsx';
+import People from './views/People.jsx';
+import Meetings from './views/Meetings.jsx';
+import Deadlines from './views/Deadlines.jsx';
+import Funding from './views/Funding.jsx';
+import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
 const STORAGE_KEY = 'rheo-demo-v1';
 
@@ -20,6 +27,18 @@ const initialState = {
   digestDone: false, // this week's digest fully reviewed
   exported: {}, // invId -> true once a package was downloaded
   guideHidden: false,
+  // Lab workspace
+  viewer: PI_ID, // who is signed in; the PI sees everything, members see only their own work
+  membersAdded: [], // people the PI added
+  logs: [], // work members logged in Rheo
+  pages: [], // notebook pages members photographed
+  slides: {}, // meetingId -> { name, created }
+  meetingsAdded: [],
+  deadlinesAdded: [],
+  deadlinesDone: {}, // deadlineId -> boolean
+  connections: {}, // memberId -> { gdrive: [folder names] }
+  sent: {}, // invId -> date sent to Yale Ventures
+  reports: {}, // grantId -> date a progress report was built
 };
 
 function load() {
@@ -62,6 +81,43 @@ function reducer(state, a) {
       return { ...state, exported: { ...state.exported, [a.inv]: true } };
     case 'guide':
       return { ...state, guideHidden: a.hidden };
+    case 'viewer':
+      // Signing in for the first time accepts the invite.
+      return {
+        ...state,
+        viewer: a.id,
+        membersAdded: state.membersAdded.map((m) => (m.id === a.id ? { ...m, invited: false } : m)),
+      };
+    case 'addMember':
+      return { ...state, membersAdded: [...state.membersAdded, a.member] };
+    case 'addLog':
+      return { ...state, logs: [...state.logs, a.entry] };
+    case 'removeLog':
+      return { ...state, logs: state.logs.filter((l) => l.id !== a.id) };
+    case 'addPage':
+      return { ...state, pages: [...state.pages, a.page] };
+    case 'removePage':
+      return { ...state, pages: state.pages.filter((p) => p.id !== a.id) };
+    case 'slides':
+      return { ...state, slides: { ...state.slides, [a.meeting]: a.value } };
+    case 'addMeeting':
+      return { ...state, meetingsAdded: [...state.meetingsAdded, a.meeting] };
+    case 'addDeadline':
+      return { ...state, deadlinesAdded: [...state.deadlinesAdded, a.deadline] };
+    case 'deadlineDone':
+      return { ...state, deadlinesDone: { ...state.deadlinesDone, [a.id]: a.value } };
+    case 'connection':
+      return {
+        ...state,
+        connections: {
+          ...state.connections,
+          [a.member]: { ...(state.connections[a.member] || {}), [a.source]: a.value },
+        },
+      };
+    case 'sent':
+      return { ...state, sent: { ...state.sent, [a.inv]: a.date } };
+    case 'report':
+      return { ...state, reports: { ...state.reports, [a.grant]: a.date } };
     case 'reset':
       return initialState;
     default:
@@ -99,25 +155,60 @@ export default function App() {
     }
   }, [state]);
 
-  const files = useMemo(() => effectiveFiles(lab, state), [state]);
+  const L = useMemo(() => labView(lab, state), [state.membersAdded]);
+  const files = useMemo(() => [...effectiveFiles(L, state), ...entryFiles(state)], [L, state]);
   const records = useMemo(
-    () => Object.fromEntries(lab.inventions.map((i) => [i.id, buildRecord(lab, files, state, i.id)])),
-    [files, state]
+    () => Object.fromEntries(L.inventions.map((i) => [i.id, buildRecord(L, files, state, i.id)])),
+    [L, files, state]
   );
   // The nav shows this week's batch, not the whole backlog: the digest is meant to take five minutes.
   const pending = Math.min(pendingCount(files), 12);
-  const ctx = { lab, state, dispatch, files, records };
+  const viewer = L.members.find((m) => m.id === state.viewer) || L.members[0];
+  const pi = isPI(viewer.id);
+  const ctx = { lab: L, state, dispatch, files, records, viewer };
 
-  if (!state.connected) return <Connect {...ctx} />;
+  if (!state.connected) return <Connect {...ctx} lab={lab} />;
 
   const [page, param] = route;
+  const piPages = ['', 'lab', 'invention', 'digest', 'handoff', 'people', 'funding'];
   let view;
-  if (page === 'invention' && records[param]) view = <Invention {...ctx} rec={records[param]} />;
+  if (!pi && piPages.includes(page || '')) {
+    // Members land on their own workspace; PI-only pages are not reachable from a member account.
+    view = page && page !== 'lab' ? <NoAccess viewer={viewer} /> : <MyWork {...ctx} subject={viewer} />;
+  } else if (page === 'invention' && records[param]) view = <Invention {...ctx} rec={records[param]} />;
   else if (page === 'digest') view = <Digest {...ctx} />;
   else if (page === 'handoff') view = <Handoff {...ctx} memberId={param} />;
+  else if (page === 'people' && param) {
+    const subject = L.members.find((m) => m.id === param);
+    view = subject ? <MyWork {...ctx} subject={subject} /> : <People {...ctx} />;
+  } else if (page === 'people') view = <People {...ctx} />;
+  else if (page === 'funding') view = <Funding {...ctx} />;
+  else if (page === 'meetings') view = <Meetings {...ctx} />;
+  else if (page === 'deadlines') view = <Deadlines {...ctx} />;
+  else if (page === 'me') view = pi ? <Lab {...ctx} /> : <MyWork {...ctx} subject={viewer} />;
+  else if (page === 'sources') view = <Sources {...ctx} />;
   else view = <Lab {...ctx} />;
 
-  const current = page || 'lab';
+  const current = page || (pi ? 'lab' : 'me');
+  const nav = pi
+    ? [
+        ['lab', 'Overview'],
+        ['people', 'People'],
+        ['meetings', 'Lab meetings'],
+        ['deadlines', 'Deadlines'],
+        ['funding', 'Funding & Yale Ventures'],
+        ['digest', 'Digest', pending],
+        ['handoff', 'Handoffs'],
+      ]
+    : [
+        ['me', 'My work'],
+        ['sources', 'My sources'],
+        ['meetings', 'Lab meetings'],
+        ['deadlines', 'My deadlines'],
+      ];
+  const active = (id) => current === id || (id === 'lab' && current === 'invention');
+  const signIns = L.members.filter((m) => m.status !== 'left');
+
   return (
     <div className="shell">
       <a
@@ -132,41 +223,41 @@ export default function App() {
         Skip to content
       </a>
       <header className="topbar">
-        <a className="wordmark" href="#/lab" aria-label="Rheo, lab overview">
+        <a className="wordmark" href={pi ? '#/lab' : '#/me'} aria-label="Rheo home">
           <RheoMark />
           <span>Rheo</span>
         </a>
         <nav aria-label="Main">
-          <a href="#/lab" aria-current={current === 'lab' ? 'page' : undefined}>
-            {lab.lab.name}
-          </a>
-          {lab.inventions.map((i) => (
-            <a
-              key={i.id}
-              href={`#/invention/${i.id}`}
-              aria-current={current === 'invention' && param === i.id ? 'page' : undefined}
-            >
-              {i.short}
+          {nav.map(([id, label, count]) => (
+            <a key={id} href={`#/${id}`} aria-current={active(id) ? 'page' : undefined}>
+              {label} {count > 0 && <span className="count">{count}</span>}
             </a>
           ))}
-          <a href="#/digest" aria-current={current === 'digest' ? 'page' : undefined}>
-            Weekly digest {pending > 0 && <span className="count">{pending}</span>}
-          </a>
-          <a href="#/handoff" aria-current={current === 'handoff' ? 'page' : undefined}>
-            Handoffs
-          </a>
         </nav>
-        <span className="demo-tag" title="Every person, file and invention here is invented">
-          Synthetic lab
-        </span>
+        <label className="viewer">
+          <span className="viewer-label">Signed in as</span>
+          <select
+            value={viewer.id}
+            onChange={(e) => {
+              dispatch({ type: 'viewer', id: e.target.value });
+              go(isPI(e.target.value) ? 'lab' : 'me');
+            }}
+          >
+            {signIns.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}, {isPI(m.id) ? 'PI' : m.role}
+              </option>
+            ))}
+          </select>
+        </label>
       </header>
       <main id="main" tabIndex={-1}>
         {view}
       </main>
       <footer className="footer">
         <span>
-          Rheo prototype. Read-only: Rheo indexes the lab's tools and never stores or edits files. All data is
-          synthetic.
+          Rheo prototype on a synthetic lab. Files stay in the lab's own storage; Rheo keeps links and the record.
+          Switch "Signed in as" to see what each person sees.
         </span>
         <button
           className="link"
@@ -180,6 +271,25 @@ export default function App() {
           Reset demo
         </button>
       </footer>
+    </div>
+  );
+}
+
+function NoAccess({ viewer }) {
+  return (
+    <div className="page narrow">
+      <section className="page-head">
+        <h1>Only the PI can see this page</h1>
+        <p className="lede">
+          {viewer.name.split(' ')[0]}, you can see your own records, deadlines and lab meeting slots. The lab-wide
+          view belongs to the PI.
+        </p>
+        <p>
+          <a className="btn primary" href="#/me">
+            Go to my work
+          </a>
+        </p>
+      </section>
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import { digest, formatDate, formatMonth, daysBetween } from '../lib/record.js';
 import Readiness, { StatusIcon } from '../components/Readiness.jsx';
+import { allDeadlines, allMeetings, recentActivity, slidesFor } from '../lib/workspace.js';
+import { DEADLINE_TYPES } from '../data/workspace.js';
+import { DueDate } from './MyWork.jsx';
 
 export default function Lab({ lab, files, records, state, dispatch }) {
   const weekly = digest(lab, files);
@@ -50,6 +53,8 @@ export default function Lab({ lab, files, records, state, dispatch }) {
         </div>
       </section>
 
+      <LabPulse lab={lab} files={files} state={state} />
+
       <section aria-labelledby="people-h" className="block">
         <h2 id="people-h">People</h2>
         <table className="table">
@@ -88,6 +93,75 @@ export default function Lab({ lab, files, records, state, dispatch }) {
             })}
           </tbody>
         </table>
+      </section>
+    </div>
+  );
+}
+
+// What's coming in from members and what's due, so the PI sees the lab at a glance.
+function LabPulse({ lab, files, state }) {
+  const today = lab.lab.today;
+  const activity = recentActivity(files, 6);
+  const due = allDeadlines(state)
+    .filter((d) => !d.done && daysBetween(today, d.date) <= 30)
+    .slice(0, 5);
+  const next = allMeetings(state).find((m) => m.date >= today);
+  const name = (id) => lab.members.find((m) => m.id === id)?.name ?? 'Someone';
+
+  return (
+    <div className="two-col even block">
+      <section className="card" aria-labelledby="in-h">
+        <h2 id="in-h">Coming in from the lab</h2>
+        {activity.length === 0 ? (
+          <p className="muted">
+            Nothing logged in Rheo yet this week. When members log work, add notebook pages or upload slides, it shows up
+            here and in the invention records. Try it: switch "Signed in as" to Tom Brandt.
+          </p>
+        ) : (
+          <ul className="feed">
+            {activity.map((f) => (
+              <li key={f.id}>
+                {f.thumb ? <img src={f.thumb} alt="" /> : <span className={`feed-dot k-${f.kind}`} aria-hidden="true" />}
+                <div>
+                  <span>
+                    <a href={`#/people/${f.owner}`}>{name(f.owner)}</a>{' '}
+                    {f.kind === 'scan' ? 'added a notebook page' : f.kind === 'slides' ? 'uploaded lab meeting slides' : 'logged'}: {f.name}
+                  </span>
+                  <span className="muted small stack">
+                    {formatDate(f.date)}
+                    {f.invention ? `, ${lab.inventions.find((i) => i.id === f.invention)?.short}` : ''}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="card" aria-labelledby="due-h">
+        <h2 id="due-h">Due in the next 30 days</h2>
+        <ul className="mini-list">
+          {due.map((d) => (
+            <li key={d.id}>
+              <DueDate date={d.date} today={today} />
+              <div>
+                <span>{d.title}</span>
+                <span className="muted small stack">{DEADLINE_TYPES[d.type]}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {next && (
+          <p className="small next-meeting">
+            Next lab meeting {formatDate(next.date, { weekday: 'long', month: 'short', day: 'numeric' })}: {name(next.presenter)},{' '}
+            {next.topic.toLowerCase()}.{' '}
+            <span className={slidesFor(next, state) ? 'muted' : 'warn-text'}>
+              {slidesFor(next, state) ? 'Slides are in.' : 'No slides yet.'}
+            </span>
+          </p>
+        )}
+        <a className="small" href="#/deadlines">
+          All deadlines
+        </a>
       </section>
     </div>
   );
