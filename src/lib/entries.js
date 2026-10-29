@@ -47,7 +47,7 @@ export function visibleEntries(state, viewer, pi) {
 // ---------- similar work ----------
 // Plain word overlap, weighted so rare words ("RiboGreen", "rheology") count more than common ones.
 const STOP = new Set(
-  'the and for with from that this was were are not but all any can had has have into its out our than then they too very will just only also more most some such about after again before being both each few how off once other over same under until when where which while who why your yours mine their them what did does doing done day days week used use using made make ran run get got per one two three new old first last next via set'.split(
+  'the and for with from that this was were are not but all any can had has have into its out our than then they too very will just only also more most some such about after again before being both each few how off once other over same under until when where which while who why your yours mine their them what did does doing done day days week used use using made make ran run get got per one two three new old first last next via set test tested testing tests tried try check checked repeat repeated compared started start ran'.split(
     ' '
   )
 );
@@ -57,7 +57,16 @@ const words = (e) =>
     .replace(/[^a-z0-9µ°\-\s]/g, ' ')
     .split(/[\s-]+/)
     .filter((w) => w.length > 2 && !STOP.has(w) && !/^\d+$/.test(w))
-    .map((w) => (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w));
+    .map(stem);
+
+// Rough stemming so "bonded", "bonding" and "bonds" count as the same word.
+function stem(w) {
+  if (w.length > 5 && w.endsWith('ing')) return w.slice(0, -3);
+  if (w.length > 4 && w.endsWith('ed')) return w.slice(0, -2);
+  if (w.length > 4 && w.endsWith('es')) return w.slice(0, -2);
+  if (w.length > 4 && w.endsWith('s')) return w.slice(0, -1);
+  return w;
+}
 
 export function similarityIndex(entries) {
   const docs = new Map(entries.map((e) => [e.id, words(e)]));

@@ -4,9 +4,10 @@ import { formatDate, daysBetween } from '../lib/record.js';
 import { DEADLINE_TYPES } from '../data/workspace.js';
 import { allDeadlines, allMeetings, slidesFor, connectionsFor } from '../lib/workspace.js';
 import { MemberStatus } from './Lab.jsx';
-import EntryForm from '../components/EntryForm.jsx';
+import LogCard from '../components/LogCard.jsx';
 import { RecentEntries } from '../components/WorkLog.jsx';
 import { invName } from '../lib/entries.js';
+import { RheoDoesIt } from './Tools.jsx';
 
 // A member's workspace. Members only ever see their own; the PI can open anyone's from People.
 export default function MyWork({ lab, files, state, dispatch, viewer, subject, pi }) {
@@ -48,6 +49,7 @@ export default function MyWork({ lab, files, state, dispatch, viewer, subject, p
               <LogCard lab={lab} viewer={viewer} onInventions={onInventions} dispatch={dispatch} />
               <MyProjects inventions={onInventions} state={state} viewer={viewer} />
               <RecentEntries lab={lab} state={state} viewer={viewer} pi={pi} />
+              <RheoDoesIt />
             </>
           ) : (
             <Contribution lab={lab} subject={subject} mine={mine} onInventions={onInventions} />
@@ -184,34 +186,6 @@ export function DueDate({ date, today }) {
       <span className="due-m">{formatDate(date, { month: 'short' })}</span>
       <span className="due-d tnum">{formatDate(date, { day: 'numeric' })}</span>
     </span>
-  );
-}
-
-function LogCard({ lab, viewer, onInventions, dispatch }) {
-  const [saved, setSaved] = useState(null);
-  const [n, setN] = useState(0); // remount the form after each save so it starts empty
-  return (
-    <section className="card log-card" aria-labelledby="log-h">
-      <h2 id="log-h">Log work</h2>
-      <EntryForm
-        key={n}
-        lab={lab}
-        viewer={viewer}
-        inventions={onInventions}
-        autoFocus={false}
-        submitLabel="Add to my work"
-        onSave={(entry) => {
-          dispatch({ type: 'addLog', entry });
-          setSaved(entry.id);
-          setN((x) => x + 1);
-        }}
-      />
-      {saved && (
-        <p className="muted small" aria-live="polite">
-          Saved. <a href={`#/entry/${saved}`}>Open it</a>
-        </p>
-      )}
-    </section>
   );
 }
 

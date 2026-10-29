@@ -19,6 +19,7 @@ import QuickNote from './components/QuickNote.jsx';
 import Entries from './views/Entries.jsx';
 import Entry from './views/Entry.jsx';
 import Project from './views/Project.jsx';
+import Tools from './views/Tools.jsx';
 import { SAMPLE_LOGS } from './data/sampleLogs.js';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
@@ -213,6 +214,7 @@ export default function App() {
   else if (page === 'me') view = pi ? <Lab {...ctx} /> : <MyWork {...ctx} subject={viewer} />;
   else if (page === 'sources') view = <Sources {...ctx} />;
   else if (page === 'entries') view = <Entries key={route.join('/')} {...ctx} project={param} scope={route[2] || 'mine'} />;
+  else if (page === 'tools') view = <Tools key={param || 'hub'} {...ctx} toolId={param} />;
   else if (page === 'entry') view = <Entry key={param} {...ctx} id={param} />;
   else if (page === 'project' && L.inventions.some((i) => i.id === param))
     view = <Project {...ctx} inv={L.inventions.find((i) => i.id === param)} />;
@@ -222,13 +224,13 @@ export default function App() {
   // Four plain destinations for the PI, three for members. Everything else lives inside them.
   const nav = pi
     ? [
-        ['lab', 'Home', ['lab', 'me', 'digest', 'entries', 'entry']],
+        ['lab', 'Home', ['lab', 'me', 'digest', 'entries', 'entry', 'tools']],
         ['inventions', 'Inventions', ['inventions', 'invention', 'disclose']],
         ['people', 'My lab', labTabs],
         ['funding', 'Funding', ['funding']],
       ]
     : [
-        ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project']],
+        ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project', 'tools']],
         ['meetings', 'Lab meetings', ['meetings']],
         ['deadlines', 'Deadlines', ['deadlines']],
       ];
