@@ -11,7 +11,7 @@ export default function RecordRow({ f, lab, dispatch, showInvention = false, onR
     <li className={`record ${f.match} ${f.thumb ? 'has-thumb' : ''}`}>
       {f.thumb && <img className="record-thumb" src={f.thumb} alt={`Photo of ${f.name}`} />}
       <div className="record-main">
-        <p className="record-name">{f.name}</p>
+        <p className="record-name">{f.entry ? <a href={`#/entry/${f.id}`}>{f.name}</a> : f.name}</p>
         <p className="muted small">
           {KIND_LABEL[f.kind] ?? f.kind}, {owner?.name}
           {owner?.status === 'left' ? ' (left)' : ''}, {formatDate(f.date)}. {where}

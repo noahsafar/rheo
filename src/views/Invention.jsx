@@ -3,9 +3,10 @@ import Readiness from '../components/Readiness.jsx';
 import River from '../components/River.jsx';
 import ExportPanel from '../components/ExportPanel.jsx';
 import RecordRow from '../components/RecordRow.jsx';
+import { ProjectWorkLog } from '../components/WorkLog.jsx';
 import { formatDate, formatMonth } from '../lib/record.js';
 
-export default function Invention({ lab, rec, state, dispatch }) {
+export default function Invention({ lab, rec, state, dispatch, viewer, pi }) {
   const [exporting, setExporting] = useState(false);
   return (
     <div className="page">
@@ -34,6 +35,8 @@ export default function Invention({ lab, rec, state, dispatch }) {
           </button>
         </div>
       </section>
+
+      <ProjectWorkLog lab={lab} state={state} viewer={viewer} pi={pi} inv={rec.inv} />
 
       <div className="two-col">
         <section aria-labelledby="ready-h" className="card">

@@ -3,8 +3,9 @@ import { StatusIcon } from '../components/Readiness.jsx';
 import { allDeadlines, allMeetings, recentActivity, slidesFor } from '../lib/workspace.js';
 import { DEADLINE_TYPES } from '../data/workspace.js';
 import { DueDate } from './MyWork.jsx';
+import { RecentEntries } from '../components/WorkLog.jsx';
 
-export default function Lab({ lab, files, records, state, dispatch }) {
+export default function Lab({ lab, files, records, state, dispatch, viewer, pi }) {
   const weekly = digest(lab, files);
   const recs = lab.inventions.map((i) => records[i.id]);
   const first = lab.lab.pi.split(' ')[0];
@@ -18,6 +19,8 @@ export default function Lab({ lab, files, records, state, dispatch }) {
           Rheo keeps your lab's records organized by invention, so you're ready whenever Yale Ventures or a funder asks.
         </p>
       </section>
+
+      <RecentEntries lab={lab} state={state} viewer={viewer} pi={pi} />
 
       <a className="disclose-hero" href="#/disclose">
         <span>
