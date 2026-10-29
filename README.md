@@ -4,6 +4,8 @@ Rheo builds the record behind a lab's inventions from the tools the lab already 
 
 This repo is the first prototype, running on a synthetic lab. Every person, file and invention in it is invented.
 
+How we chose this design, from constraints to the options we explored, is in [docs/solution-space.md](docs/solution-space.md).
+
 The Versatilists: Bryn, Noah, Pola, Yuto.
 
 ## Run it
