@@ -20,6 +20,7 @@ import Entries from './views/Entries.jsx';
 import Entry from './views/Entry.jsx';
 import Project from './views/Project.jsx';
 import Tools from './views/Tools.jsx';
+import Welcome from './views/Welcome.jsx';
 import { SAMPLE_LOGS } from './data/sampleLogs.js';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
@@ -214,6 +215,7 @@ export default function App() {
   else if (page === 'me') view = pi ? <Lab {...ctx} /> : <MyWork {...ctx} subject={viewer} />;
   else if (page === 'sources') view = <Sources {...ctx} />;
   else if (page === 'entries') view = <Entries key={route.join('/')} {...ctx} project={param} scope={route[2] || 'mine'} />;
+  else if (page === 'welcome') view = <Welcome {...ctx} />;
   else if (page === 'tools') view = <Tools key={param || 'hub'} {...ctx} toolId={param} />;
   else if (page === 'entry') view = <Entry key={param} {...ctx} id={param} />;
   else if (page === 'project' && L.inventions.some((i) => i.id === param))
@@ -228,11 +230,13 @@ export default function App() {
         ['inventions', 'Inventions', ['inventions', 'invention', 'disclose']],
         ['people', 'My lab', labTabs],
         ['funding', 'Funding', ['funding']],
+        ['welcome', 'New to the lab', ['welcome']],
       ]
     : [
         ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project', 'tools']],
         ['meetings', 'Lab meetings', ['meetings']],
         ['deadlines', 'Deadlines', ['deadlines']],
+        ['welcome', 'New to the lab', ['welcome']],
       ];
   const signIns = L.members.filter((m) => m.status !== 'left');
   const showLabTabs = pi && labTabs.includes(page) && !(page === 'people' && param);

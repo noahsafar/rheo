@@ -12,7 +12,10 @@ import {
   troubleshoot,
   projectTimeline,
   interpret,
+  grantDraft,
+  jobSummary,
 } from '../lib/tools.js';
+import { grants } from '../data/workspace.js';
 
 const minusDays = (iso, n) => {
   const d = new Date(iso + 'T12:00');
@@ -90,6 +93,8 @@ function ToolBody({ id, ctx, prefill }) {
   if (id === 'methods') return <Methods {...ctx} prefill={prefill} />;
   if (id === 'troubleshoot') return <Troubleshoot {...ctx} prefill={prefill} />;
   if (id === 'timeline') return <Timeline {...ctx} prefill={prefill} />;
+  if (id === 'grant') return <Grant {...ctx} prefill={prefill} />;
+  if (id === 'job') return <Job {...ctx} prefill={prefill} />;
   return <Ask {...ctx} />;
 }
 
@@ -566,9 +571,129 @@ function Timeline({ lab, state, viewer, pi, prefill }) {
   );
 }
 
+// ---------- before anything leaves the lab ----------
+// Sending details of an undisclosed invention outside the lab can limit patent rights.
+function DisclosureWarning({ lab, state, invIds, what }) {
+  const pending = lab.inventions.filter((i) => invIds.includes(i.id) && !state.sent?.[i.id]);
+  if (!pending.length) return null;
+  return (
+    <div className="found warn">
+      <p className="found-label">Check with Yale Ventures before you send this</p>
+      <p>
+        {pending.map((i) => i.short).join(' and ')} {pending.length > 1 ? "haven't" : "hasn't"} been disclosed to Yale Ventures yet.
+        Details in {what} can count as sharing the invention publicly, which can limit patents. Keep it general, or{' '}
+        <a href={`#/disclose/${pending[0].id}`}>disclose it first</a>.
+      </p>
+    </div>
+  );
+}
+
+// ---------- grant: preliminary data ----------
+function Grant({ lab, state, viewer, pi, prefill }) {
+  const projects = myProjects(lab, viewer, pi);
+  const [invId, setInvId] = useState(prefill?.invention || projects[0]?.id || '');
+  const linked = grants.filter((g) => g.inventions.includes(invId));
+  const [grantId, setGrantId] = useState('');
+  const [scope, setScope] = useState('lab');
+  const [range, setRange] = useState(prefill?.days ? nearestRange(prefill.days) : 'any');
+  const all = useMemo(() => visibleEntries(state, viewer, pi), [state.logs, viewer.id, pi]);
+  const days = range === 'any' ? null : Number(range);
+  const entries = all.filter(
+    (e) => (e.invention || '') === invId && (scope === 'lab' || e.owner === viewer.id) && inRange(e, days, lab.lab.today)
+  );
+  const grant = grants.find((g) => g.id === grantId);
+  const { text } = grantDraft({ lab, state, entries, invId, grant });
+  return (
+    <>
+      <div className="field-row">
+        <label className="field">
+          <span>Project</span>
+          <select value={invId} onChange={(e) => { setInvId(e.target.value); setGrantId(''); }}>
+            {projects.map((i) => (
+              <option key={i.id} value={i.id}>
+                {invName(state, i)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Builds on a current grant? (optional)</span>
+          <select value={grantId} onChange={(e) => setGrantId(e.target.value)}>
+            <option value="">Don't mention one</option>
+            {(linked.length ? linked : grants).map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.sponsor}: {g.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Whose work</span>
+          <select value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="lab">Everything shared with me</option>
+            <option value="mine">Just mine</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Date</span>
+          <select value={range} onChange={(e) => setRange(e.target.value)}>
+            {DATE_RANGES.filter((r) => r.id !== 'custom').map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="muted">
+        Built from {entries.length} {entries.length === 1 ? 'entry' : 'entries'}. Only entries shared with you are used, never anyone's "Only me" entries.
+      </p>
+      <DisclosureWarning lab={lab} state={state} invIds={[invId]} what="a grant application" />
+      <Output
+        text={text}
+        fileName={`preliminary-data-${invId}.txt`}
+        note="A starting point: add figures, statistics and citations, and match the funder's page limits."
+      />
+    </>
+  );
+}
+
+// ---------- job application: research summary ----------
+function Job({ lab, state, viewer, pi }) {
+  const mine = useMine(state, viewer, pi);
+  const [range, setRange] = useState('any');
+  const days = range === 'any' ? null : Number(range);
+  const entries = mine.filter((e) => inRange(e, days, lab.lab.today));
+  const text = jobSummary({ lab, state, viewer, entries });
+  const invIds = [...new Set(entries.map((e) => e.invention).filter(Boolean))];
+  return (
+    <>
+      <div className="field-row narrow-select">
+        <label className="field">
+          <span>Covering</span>
+          <select value={range} onChange={(e) => setRange(e.target.value)}>
+            {DATE_RANGES.filter((r) => r.id !== 'custom').map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.id === 'any' ? 'Everything I logged' : r.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="muted">
+        Built from your own {entries.length} {entries.length === 1 ? 'entry' : 'entries'}. Use it for a research statement, a CV or a cover letter.
+      </p>
+      <DisclosureWarning lab={lab} state={state} invIds={invIds} what="a job application" />
+      <Output text={text} fileName="research-summary.txt" note="Add publications, talks and awards, and ask your PI before sharing unpublished results." />
+    </>
+  );
+}
+
 // ---------- 6. tell Rheo what you need ----------
 const EXAMPLES = [
   'Make slides from my last 2 weeks on the hydrogel',
+  'Preliminary data for a grant on the sweat patch',
+  'Help with my CV for a postdoc application',
   'Email my PI an update on this week',
   "What didn't work this month?",
   'Summarize the sweat patch for my committee',
@@ -693,6 +818,18 @@ function ToolIcon({ name }) {
       </>
     ),
     chat: <path d="M4 5h16v11H9l-5 4z M8 10h8 M8 13h5" {...p} />,
+    grant: (
+      <>
+        <path d="M6 3h9l4 4v14H6z" {...p} />
+        <path d="M15 3v4h4M9 12h7M9 16h5" {...p} />
+      </>
+    ),
+    job: (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2" {...p} />
+        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" {...p} />
+      </>
+    ),
   };
   return (
     <svg className="tool-icon" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">

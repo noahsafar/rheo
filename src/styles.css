@@ -3243,3 +3243,95 @@ body {
   max-width: 760px;
   margin-bottom: 28px;
 }
+
+/* Who can see each of my entries */
+.work-table .wt-vis {
+  white-space: nowrap;
+}
+.vis-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 10px;
+}
+.vis-badge.vis-lab {
+  background: var(--stain-soft);
+  color: var(--stain);
+}
+.vis-badge.vis-pi {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.vis-badge.vis-private {
+  background: var(--gone-soft);
+  color: var(--ink-2);
+}
+
+/* New to the lab */
+.welcome-people {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.welcome-people li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.welcome-people .avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: var(--stain-soft);
+  color: var(--stain);
+}
+.welcome-tabs {
+  margin-top: 36px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.wp-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.welcome-project h3 {
+  font-size: 17px;
+}
+.welcome-sub {
+  margin: 22px 0 8px;
+  font-size: 15px;
+}
+.welcome-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 12px;
+}
+.welcome-list li {
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.fix-line {
+  margin-top: 6px;
+  color: var(--green);
+}
+.fix-line a {
+  color: inherit;
+}

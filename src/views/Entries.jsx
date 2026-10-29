@@ -142,6 +142,7 @@ export default function Entries({ lab, state, viewer, pi, project = 'all', scope
           lab={lab}
           viewer={viewer}
           showWho={!onlyMine}
+          showVisibility={onlyMine}
           showProject={f.project === 'all'}
           similar={!onlyMine ? similar : null}
           caption="Entries"

@@ -36,6 +36,18 @@ export const TOOLS = [
     icon: 'timeline',
   },
   {
+    id: 'grant',
+    title: 'Write preliminary data for a grant',
+    blurb: "Key findings, methods the lab has established and the problems you solved, ready for a proposal's preliminary data.",
+    icon: 'grant',
+  },
+  {
+    id: 'job',
+    title: 'Summarize my research for a job application',
+    blurb: 'A research summary, CV highlights and the techniques you have used, from your own entries.',
+    icon: 'job',
+  },
+  {
     id: 'ask',
     title: 'Tell Rheo what you need',
     blurb: 'Describe it in your own words and Rheo picks the right tool and settings.',
@@ -49,6 +61,9 @@ const projectOf = (lab, state, id) => {
   const inv = lab.inventions.find((i) => i.id === id);
   return inv ? invName(state, inv) : 'Other lab work';
 };
+// Lowercase only an ordinary capitalized first word, so "Ran RiboGreen" becomes "ran RiboGreen" but "PhD" and "qPCR" stay.
+const lowerFirst = (s) => (/^[A-Z][a-z]*\b/.test(s) && !/^[A-Z][a-z]*[A-Z]/.test(s) ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+const upperFirst = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const clean = (s) => (s || '').trim().replace(/[.\s]+$/, '');
 const groupBy = (xs, key) => {
   const m = new Map();
@@ -257,10 +272,119 @@ export function projectTimeline({ lab, state, entries, invId }) {
   return out.join('\n').trim();
 }
 
+// ---------- techniques ----------
+// The methods someone used, read from the "process used" field: "MTT, HeLa, 3 replicates" gives MTT and HeLa.
+export function techniquesFrom(entries) {
+  const counts = new Map();
+  for (const e of entries) {
+    if (!e.process) continue;
+    for (let part of e.process.split(/[,;]/)) {
+      part = part.trim().split(/\s+(at|for|with|in|on|from|to|every|against|instead)\s+/i)[0].trim();
+      if (!part || /\d/.test(part) || part.length < 2 || part.length > 40) continue;
+      if (/^(standard|same|n=|kept|pressed|standard passaging)$/i.test(part)) continue;
+      if (/^[a-z]+ed$/i.test(part)) continue; // a lone verb like "Compared" isn't a technique
+      const key = part.toLowerCase();
+      const cur = counts.get(key) || { name: /^[a-z]+\b/.test(part) && !/[A-Z]/.test(part.split(/\s/)[0]) ? upperFirst(part) : part, n: 0, people: new Set(), latest: null };
+      cur.n += 1;
+      cur.people.add(e.owner);
+      if (!cur.latest || e.date > cur.latest.date) cur.latest = e;
+      counts.set(key, cur);
+    }
+  }
+  return [...counts.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+}
+
+// Something that didn't work, paired with the later or similar work that fixed it.
+export function problemsSolved(entries) {
+  const index = similarityIndex(entries);
+  const out = [];
+  for (const f of chrono(entries).filter((e) => e.outcome === 'failed' || e.outcome === 'partly')) {
+    const fix = entries
+      .filter((x) => x.id !== f.id && x.outcome === 'worked')
+      .map((x) => ({ x, score: index.cos(f.id, x.id) }))
+      .filter((h) => h.score >= 0.2)
+      .sort((a, b) => b.score - a.score)[0]?.x;
+    if (fix) out.push({ problem: f, fix });
+  }
+  return out;
+}
+
+const monthYear = (iso) => formatDate(iso, { month: 'long', year: 'numeric' });
+
+// ---------- grant: preliminary data ----------
+export function grantDraft({ lab, state, entries, invId, grant }) {
+  const list = chrono(entries);
+  const out = [];
+  const project = projectOf(lab, state, invId);
+  out.push(`Preliminary data: ${project}`, '');
+  if (!list.length) return { text: [...out, 'No entries for this project yet.'].join('\n'), list };
+  const people = [...new Set(list.map((e) => nameOf(lab, e.owner)))];
+  const worked = list.filter((e) => e.outcome === 'worked' && result(e) && e.type !== 'note');
+  out.push(
+    `Since ${monthYear(list[0].date)}, ${people.length > 1 ? `${people.length} members of the ${lab.lab.name}` : nameOf(lab, people[0])} have logged ${list.filter((e) => e.type !== 'note').length} experiments and analyses on this work${grant ? `, building on support from ${grant.sponsor} (${grant.title})` : ''}.`,
+    ''
+  );
+  out.push('Key findings');
+  out.push(...(worked.length ? worked.slice(-6).map((e) => `- ${clean(result(e))} (${lowerFirst(clean(did(e)))}, ${formatDate(e.date, { month: 'short', year: 'numeric' })}).`) : ['- No results marked as working yet.']));
+  const tech = techniquesFrom(list).slice(0, 8);
+  if (tech.length) out.push('', 'Methods established in the lab', `- ${tech.map((t) => t.name).join(', ')}.`);
+  const solved = problemsSolved(list);
+  if (solved.length) {
+    out.push('', 'Challenges we have already addressed');
+    for (const { problem, fix } of solved.slice(0, 3))
+      out.push(`- ${clean(did(problem))}${result(problem) ? ` (${lowerFirst(clean(result(problem)))})` : ''}. Resolved: ${lowerFirst(clean(did(fix)))}${result(fix) ? `, ${lowerFirst(clean(result(fix)))}` : ''}.`);
+  }
+  const open = list.filter((e) => e.outcome === 'unclear' || e.outcome === 'partly' || e.type === 'idea');
+  if (open.length) {
+    out.push('', 'Open questions this proposal would address');
+    for (const e of open.slice(-4)) out.push(`- ${clean(did(e)).replace(/^idea:\s*/i, '')}${e.outcome === 'partly' && result(e) ? ` (so far: ${lowerFirst(clean(result(e)))})` : ''}.`);
+  }
+  out.push('', `Contributors: ${people.join(', ')}.`);
+  return { text: out.join('\n'), list };
+}
+
+// ---------- job application: research summary ----------
+export function jobSummary({ lab, state, viewer, entries }) {
+  const list = chrono(entries);
+  const out = [];
+  if (!list.length) return 'No entries yet. Log some work first.';
+  const projects = [...new Set(list.map((e) => e.invention || ''))].map((id) => projectOf(lab, state, id));
+  const tech = techniquesFrom(list);
+  const worked = list.filter((e) => e.outcome === 'worked' && result(e) && e.type !== 'note');
+  const ideas = list.filter((e) => e.type === 'idea');
+  const solved = problemsSolved(list);
+  out.push('Research summary', '');
+  out.push(
+    `As a ${lowerFirst(viewer.role)} in the ${lab.lab.name} (${lab.lab.department}), I work on ${projects.length > 1 ? 'two projects: ' : 'the '}${projects.map(lowerFirst).join(' and ')}. ` +
+      `${tech.length ? `My work uses ${tech.slice(0, 4).map((t) => t.name).join(', ')}${tech.length > 4 ? ' and other methods' : ''}. ` : ''}` +
+      `${solved.length ? `When methods failed, I found working alternatives, for example ${lowerFirst(clean(did(solved[0].fix)))}. ` : ''}` +
+      `${ideas.length ? `I also proposed new directions, including ${lowerFirst(clean(did(ideas[ideas.length - 1])).replace(/^idea:\s*/i, ''))}.` : ''}`.trim(),
+    ''
+  );
+  out.push('Highlights for a CV');
+  out.push(...(worked.length ? worked.slice(-6).reverse().map((e) => `- ${clean(did(e))}: ${lowerFirst(clean(result(e)))}.`) : ['- Mark results as "Worked" and they show up here.']));
+  if (tech.length) {
+    out.push('', 'Techniques');
+    out.push(`- ${tech.map((t) => (t.n > 1 ? `${t.name} (${t.n}x)` : t.name)).join(', ')}.`);
+  }
+  if (ideas.length) {
+    out.push('', 'Ideas I originated');
+    out.push(...ideas.map((e) => `- ${clean(did(e)).replace(/^idea:\s*/i, '')} (${formatDate(e.date, { month: 'short', year: 'numeric' })}).`));
+  }
+  if (solved.length) {
+    out.push('', 'Problems I solved');
+    out.push(...solved.slice(0, 4).map(({ problem, fix }) => `- ${clean(did(problem))} didn't work; ${lowerFirst(clean(did(fix)))} did.`));
+  }
+  out.push('', `Based on ${list.length} entries from ${monthYear(list[0].date)} to ${monthYear(list[list.length - 1].date)}. Add publications, talks and awards yourself.`);
+  return out.join('\n');
+}
+
 // ---------- tell Rheo what you need ----------
 // Matches plain-language requests to a tool and its settings. A production version would use an AI model;
 // in this prototype it reads keywords, project names and time phrases.
 const RULES = [
+  ['grant', /\b(grants?|proposals?|preliminary data|specific aims|aims page|fellowship|r01|r21|k99|nsf|nih|funding application)\b/i],
+  ['job', /\b(jobs?|cv|resume|résumé|research statement|faculty|postdoc application|position|interview|cover letter|hiring|career)\b/i],
   ['slides', /\b(slides?|deck|powerpoint|ppt|present(ation)?|lab meeting|talk)\b/i],
   ['update', /\b(update|email|e-mail|report to|tell (my )?(pi|boss|advisor)|weekly|progress|status)\b/i],
   ['methods', /\b(methods?|protocol write|write.?up (the )?procedure|materials and methods|paper|manuscript|thesis methods)\b/i],
