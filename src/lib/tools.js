@@ -43,9 +43,10 @@ export const TOOLS = [
   },
   {
     id: 'job',
-    title: 'Summarize my research for a job application',
-    blurb: 'A research summary, CV highlights and the techniques you have used, from your own entries.',
+    title: 'Jobs: CV, cover letter and more',
+    blurb: 'Describe your work for a CV, a research summary, a cover letter paragraph, a short bio and your skills.',
     icon: 'job',
+    href: '#/jobs',
   },
   {
     id: 'ask',
@@ -377,6 +378,85 @@ export function jobSummary({ lab, state, viewer, entries }) {
   }
   out.push('', `Based on ${list.length} entries from ${monthYear(list[0].date)} to ${monthYear(list[list.length - 1].date)}. Add publications, talks and awards yourself.`);
   return out.join('\n');
+}
+
+// ---------- jobs ----------
+const memberOf = (lab, viewer) => lab.members.find((m) => m.id === viewer.id) || viewer;
+const projectList = (lab, state, list) => [...new Set(list.map((e) => e.invention || ''))].map((id) => projectOf(lab, state, id));
+const ideaText = (e) => clean(did(e)).replace(/^idea:\s*/i, '');
+
+// A CV entry: position line, dates, project, then achievement bullets and skills.
+export function cvEntry({ lab, state, viewer, entries }) {
+  const list = chrono(entries);
+  if (!list.length) return 'No entries yet. Log some work first.';
+  const m = memberOf(lab, viewer);
+  const from = m.start ? formatDate(m.start, { month: 'short', year: 'numeric' }) : formatDate(list[0].date, { month: 'short', year: 'numeric' });
+  const to = m.end && m.status === 'left' ? formatDate(m.end, { month: 'short', year: 'numeric' }) : 'present';
+  const out = [
+    `${upperFirst(m.role)}, ${lab.lab.name}, ${lab.lab.department}, ${lab.lab.institution}    ${from} – ${to}`,
+    `${projectList(lab, state, list).length > 1 ? 'Projects' : 'Project'}: ${projectList(lab, state, list).join('; ')}`,
+  ];
+  const bullets = [];
+  const solved = problemsSolved(list);
+  const usedFix = new Set(solved.map((x) => x.fix.id));
+  for (const { problem, fix } of solved.slice(0, 2))
+    bullets.push(`Solved a failed step (${lowerFirst(clean(did(problem)))}): ${lowerFirst(clean(did(fix)))}${result(fix) ? `, ${lowerFirst(clean(result(fix)))}` : ''}.`);
+  for (const e of list.filter((e) => e.outcome === 'worked' && result(e) && e.type !== 'note' && !usedFix.has(e.id)).slice(-4).reverse())
+    bullets.push(`${upperFirst(clean(did(e)))}: ${lowerFirst(clean(result(e)))}.`);
+  for (const e of list.filter((e) => e.type === 'idea').slice(-1)) bullets.push(`Proposed ${lowerFirst(ideaText(e))}.`);
+  out.push(...(bullets.length ? bullets.map((b) => `- ${b}`) : ['- Mark results as "Worked" and they become CV bullets.']));
+  const tech = techniquesFrom(list).slice(0, 8);
+  if (tech.length) out.push(`Skills: ${tech.map((t) => t.name).join(', ')}`);
+  return out.join('\n');
+}
+
+// One paragraph for a cover letter, with a blank for the job.
+export function coverLetter({ lab, state, viewer, entries }) {
+  const list = chrono(entries);
+  if (!list.length) return 'No entries yet. Log some work first.';
+  const m = memberOf(lab, viewer);
+  const projects = projectList(lab, state, list).map(lowerFirst);
+  const solved = problemsSolved(list)[0];
+  const worked = list.filter((e) => e.outcome === 'worked' && result(e) && e.type !== 'note' && e.id !== solved?.fix.id).slice(-2);
+  const tech = techniquesFrom(list).slice(0, 3).map((t) => t.name);
+  const parts = [
+    `As a ${lowerFirst(m.role)} in the ${lab.lab.name} at ${lab.lab.institution.replace(/\s*\(synthetic\)/, '')}, I work on ${projects.length > 1 ? 'two projects: ' : 'the '}${projects.join(' and ')}.`,
+  ];
+  if (worked.length) parts.push(`Recent work includes ${worked.map((e) => `${lowerFirst(clean(did(e)))} (${lowerFirst(clean(result(e)))})`).join(' and ')}.`);
+  if (solved)
+    parts.push(
+      `When ${lowerFirst(clean(did(solved.problem)))} didn't work, I tried another approach (${lowerFirst(clean(did(solved.fix)))})${result(solved.fix) ? ` and got ${lowerFirst(clean(result(solved.fix)))}` : ''}.`
+    );
+  if (tech.length) parts.push(`This work has given me hands-on experience with ${tech.join(', ').replace(/, ([^,]*)$/, ' and $1')}.`);
+  parts.push("I'd bring the same approach to [the role] at [the organization].");
+  return parts.join(' ');
+}
+
+// A short third-person bio for LinkedIn, a website or a conference program.
+export function shortBio({ lab, state, viewer, entries }) {
+  const list = chrono(entries);
+  const m = memberOf(lab, viewer);
+  const first = m.name.split(' ')[0];
+  const projects = projectList(lab, state, list).map(lowerFirst);
+  const tech = techniquesFrom(list).slice(0, 3).map((t) => t.name);
+  const out = [
+    `${m.name} is a ${lowerFirst(m.role)} in the ${lab.lab.name} (${lab.lab.department}) at ${lab.lab.institution.replace(/\s*\(synthetic\)/, '')}${projects.length ? `, working on ${projects.length > 1 ? '' : 'the '}${projects.join(' and ')}` : ''}.`,
+  ];
+  if (tech.length) out.push(`${first}'s work uses ${tech.join(', ').replace(/, ([^,]*)$/, ' and $1')}.`);
+  const idea = list.filter((e) => e.type === 'idea').slice(-1)[0];
+  if (idea) out.push(`${first} is currently exploring ${lowerFirst(ideaText(idea))}.`);
+  return out.join(' ');
+}
+
+// Every technique with how often and how recently it was used: for a skills section, or to answer
+// "how much experience do you have with X?" in an interview.
+export function skillsList({ entries }) {
+  const tech = techniquesFrom(entries);
+  if (!tech.length) return 'No processes noted yet. Add "Process used" to your entries and your skills show up here.';
+  return [
+    'Skills and techniques',
+    ...tech.map((t) => `- ${t.name}: used ${t.n} ${t.n === 1 ? 'time' : 'times'}, most recently ${formatDate(t.latest.date, { month: 'short', year: 'numeric' })} (${lowerFirst(clean(did(t.latest)))})`),
+  ].join('\n');
 }
 
 // ---------- tell Rheo what you need ----------

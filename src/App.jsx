@@ -22,6 +22,7 @@ import Project from './views/Project.jsx';
 import Tools from './views/Tools.jsx';
 import Welcome from './views/Welcome.jsx';
 import Slack from './views/Slack.jsx';
+import Jobs from './views/Jobs.jsx';
 import { slackFiles } from './lib/slack.js';
 import { SAMPLE_LOGS } from './data/sampleLogs.js';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
@@ -223,6 +224,7 @@ export default function App() {
   else if (page === 'sources') view = <Sources {...ctx} />;
   else if (page === 'entries') view = <Entries key={route.join('/')} {...ctx} project={param} scope={route[2] || 'mine'} />;
   else if (page === 'welcome') view = <Welcome {...ctx} />;
+  else if (page === 'jobs') view = <Jobs {...ctx} />;
   else if (page === 'slack') view = <Slack {...ctx} channelId={param} />;
   else if (page === 'tools') view = <Tools key={param || 'hub'} {...ctx} toolId={param} />;
   else if (page === 'entry') view = <Entry key={param} {...ctx} id={param} />;
@@ -238,12 +240,14 @@ export default function App() {
         ['inventions', 'Inventions', ['inventions', 'invention', 'disclose']],
         ['people', 'My lab', labTabs],
         ['funding', 'Funding', ['funding']],
+        ['jobs', 'Jobs', ['jobs']],
         ['welcome', 'New to the lab', ['welcome']],
       ]
     : [
         ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project', 'tools', 'slack']],
         ['meetings', 'Lab meetings', ['meetings']],
         ['deadlines', 'Deadlines', ['deadlines']],
+        ['jobs', 'Jobs', ['jobs']],
         ['welcome', 'New to the lab', ['welcome']],
       ];
   const signIns = L.members.filter((m) => m.status !== 'left');

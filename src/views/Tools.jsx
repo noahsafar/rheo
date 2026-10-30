@@ -13,10 +13,10 @@ import {
   projectTimeline,
   interpret,
   grantDraft,
-  jobSummary,
 } from '../lib/tools.js';
 import { grants } from '../data/workspace.js';
 import { PostToSlack } from './Slack.jsx';
+import { JobsBody } from './Jobs.jsx';
 
 const minusDays = (iso, n) => {
   const d = new Date(iso + 'T12:00');
@@ -35,7 +35,7 @@ export function RheoDoesIt() {
       <ul className="tool-grid">
         {TOOLS.map((t) => (
           <li key={t.id}>
-            <a className={`tool-card ${t.id === 'ask' ? 'ask' : ''}`} href={`#/tools/${t.id}`}>
+            <a className={`tool-card ${t.id === 'ask' ? 'ask' : ''}`} href={t.href || `#/tools/${t.id}`}>
               <ToolIcon name={t.icon} />
               <strong>{t.title}</strong>
               <span className="muted small">{t.blurb}</span>
@@ -79,7 +79,7 @@ export default function Tools({ lab, state, dispatch, viewer, pi, toolId }) {
         Other things Rheo can do:{' '}
         {TOOLS.filter((t) => t.id !== tool.id).map((t, i, xs) => (
           <span key={t.id}>
-            <a href={`#/tools/${t.id}`}>{t.title.toLowerCase()}</a>
+            <a href={t.href || `#/tools/${t.id}`}>{t.title.toLowerCase()}</a>
             {i < xs.length - 1 ? ', ' : '.'}
           </span>
         ))}
@@ -95,11 +95,11 @@ function ToolBody({ id, ctx, prefill }) {
   if (id === 'troubleshoot') return <Troubleshoot {...ctx} prefill={prefill} />;
   if (id === 'timeline') return <Timeline {...ctx} prefill={prefill} />;
   if (id === 'grant') return <Grant {...ctx} prefill={prefill} />;
-  if (id === 'job') return <Job {...ctx} prefill={prefill} />;
+  if (id === 'job') return <JobsBody {...ctx} />;
   return <Ask {...ctx} />;
 }
 
-const useMine = (state, viewer, pi) =>
+export const useMine = (state, viewer, pi) =>
   useMemo(() => visibleEntries(state, viewer, pi).filter((e) => e.owner === viewer.id), [state.logs, viewer.id, pi]);
 
 const myProjects = (lab, viewer, pi) =>
@@ -372,7 +372,7 @@ function SlidePreview({ s }) {
 }
 
 // ---------- text outputs (update, methods, timeline) ----------
-function Output({ text, fileName, mailto, note, slack }) {
+export function Output({ text, fileName, mailto, note, slack }) {
   const [edited, setEdited] = useState(null);
   const [copied, setCopied] = useState(false);
   const value = edited ?? text;
@@ -592,7 +592,7 @@ function Timeline({ lab, state, dispatch, viewer, pi, prefill }) {
 
 // ---------- before anything leaves the lab ----------
 // Sending details of an undisclosed invention outside the lab can limit patent rights.
-function DisclosureWarning({ lab, state, invIds, what }) {
+export function DisclosureWarning({ lab, state, invIds, what }) {
   const pending = lab.inventions.filter((i) => invIds.includes(i.id) && !state.sent?.[i.id]);
   if (!pending.length) return null;
   return (
@@ -673,37 +673,6 @@ function Grant({ lab, state, viewer, pi, prefill }) {
         fileName={`preliminary-data-${invId}.txt`}
         note="A starting point: add figures, statistics and citations, and match the funder's page limits."
       />
-    </>
-  );
-}
-
-// ---------- job application: research summary ----------
-function Job({ lab, state, viewer, pi }) {
-  const mine = useMine(state, viewer, pi);
-  const [range, setRange] = useState('any');
-  const days = range === 'any' ? null : Number(range);
-  const entries = mine.filter((e) => inRange(e, days, lab.lab.today));
-  const text = jobSummary({ lab, state, viewer, entries });
-  const invIds = [...new Set(entries.map((e) => e.invention).filter(Boolean))];
-  return (
-    <>
-      <div className="field-row narrow-select">
-        <label className="field">
-          <span>Covering</span>
-          <select value={range} onChange={(e) => setRange(e.target.value)}>
-            {DATE_RANGES.filter((r) => r.id !== 'custom').map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.id === 'any' ? 'Everything I logged' : r.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <p className="muted">
-        Built from your own {entries.length} {entries.length === 1 ? 'entry' : 'entries'}. Use it for a research statement, a CV or a cover letter.
-      </p>
-      <DisclosureWarning lab={lab} state={state} invIds={invIds} what="a job application" />
-      <Output text={text} fileName="research-summary.txt" note="Add publications, talks and awards, and ask your PI before sharing unpublished results." />
     </>
   );
 }
@@ -798,7 +767,7 @@ function Ask(ctx) {
           {matches.length > 0 && <WorkTable entries={matches} lab={lab} viewer={viewer} showProject caption="Matching entries" />}
           <div className="tool-actions">
             {TOOLS.filter((t) => t.id !== 'ask').map((t) => (
-              <a key={t.id} className="btn small" href={`#/tools/${t.id}`}>
+              <a key={t.id} className="btn small" href={t.href || `#/tools/${t.id}`}>
                 {t.title}
               </a>
             ))}

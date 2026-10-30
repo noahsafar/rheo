@@ -3500,3 +3500,16 @@ body {
     white-space: nowrap;
   }
 }
+
+/* Jobs */
+.jobs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.jobs-range {
+  margin-top: 0;
+  min-width: 200px;
+}
