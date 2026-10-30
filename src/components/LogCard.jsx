@@ -21,6 +21,9 @@ export default function LogCard({ lab, viewer, onInventions, dispatch }) {
           setN((x) => x + 1);
         }}
       />
+      <p className="muted small log-slack">
+        Or log from Slack: type <code>/rheo</code> and what you did in any channel. <a href="#/slack">Slack</a>
+      </p>
       {saved && (
         <p className="muted small" aria-live="polite">
           Saved. <a href={`#/entry/${saved}`}>Open it</a>

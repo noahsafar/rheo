@@ -16,6 +16,7 @@ import {
   jobSummary,
 } from '../lib/tools.js';
 import { grants } from '../data/workspace.js';
+import { PostToSlack } from './Slack.jsx';
 
 const minusDays = (iso, n) => {
   const d = new Date(iso + 'T12:00');
@@ -295,6 +296,18 @@ function Slides({ lab, state, dispatch, viewer, pi, prefill }) {
                   {attached === meeting.id ? `Attached to ${formatDate(meeting.date, { month: 'short', day: 'numeric' })}` : `Attach to the ${formatDate(meeting.date, { month: 'short', day: 'numeric' })} lab meeting`}
                 </button>
               )}
+              {chosen.length > 0 && (
+                <PostToSlack
+                  lab={lab}
+                  state={state}
+                  dispatch={dispatch}
+                  viewer={viewer}
+                  defaultChannel="marsh-lab"
+                  text={`${meeting ? `Slides for the ${formatDate(meeting.date, { month: 'short', day: 'numeric' })} lab meeting` : 'Slides'}: ${outline.title} (${outline.slides.length} slides, from ${chosen.length} entries).`}
+                  link="#/meetings"
+                  linkLabel="Lab meeting schedule"
+                />
+              )}
               <span className="muted small">Opens in PowerPoint, Keynote or Google Slides. Add figures and next steps before you present.</span>
             </div>
           </>
@@ -359,7 +372,7 @@ function SlidePreview({ s }) {
 }
 
 // ---------- text outputs (update, methods, timeline) ----------
-function Output({ text, fileName, mailto, note }) {
+function Output({ text, fileName, mailto, note, slack }) {
   const [edited, setEdited] = useState(null);
   const [copied, setCopied] = useState(false);
   const value = edited ?? text;
@@ -414,13 +427,14 @@ function Output({ text, fileName, mailto, note }) {
         >
           Download
         </button>
+        {slack && <PostToSlack {...slack} text={value} />}
       </div>
     </section>
   );
 }
 
 // ---------- 2. weekly update ----------
-function Update({ lab, state, viewer, pi, prefill }) {
+function Update({ lab, state, dispatch, viewer, pi, prefill }) {
   const today = lab.lab.today;
   const [days, setDays] = useState(String(prefill?.days || 7));
   const mine = useMine(state, viewer, pi);
@@ -455,6 +469,7 @@ function Update({ lab, state, viewer, pi, prefill }) {
               }
             : null
         }
+        slack={{ lab, state, dispatch, viewer }}
         note={`Fill in "Next week" before you send.${pi ? '' : ` Open in email starts a message to ${lab.lab.pi} in your email app; nothing is sent until you press send.`}`}
       />
     </>
@@ -521,7 +536,7 @@ function Troubleshoot({ lab, state, viewer, pi }) {
 }
 
 // ---------- 5. timeline ----------
-function Timeline({ lab, state, viewer, pi, prefill }) {
+function Timeline({ lab, state, dispatch, viewer, pi, prefill }) {
   const projects = myProjects(lab, viewer, pi);
   const [invId, setInvId] = useState(prefill?.invention || projects[0]?.id || '');
   const [scope, setScope] = useState('mine');
@@ -566,7 +581,11 @@ function Timeline({ lab, state, viewer, pi, prefill }) {
       <p className="muted">
         Built from {entries.length} {entries.length === 1 ? 'entry' : 'entries'}.
       </p>
-      <Output text={text} fileName={`timeline-${invId || 'other'}.txt`} />
+      <Output
+        text={text}
+        fileName={`timeline-${invId || 'other'}.txt`}
+        slack={{ lab, state, dispatch, viewer, defaultChannel: invId === 'inv1' ? 'hydrogel' : invId === 'inv2' ? 'sweat-patch' : 'marsh-lab' }}
+      />
     </>
   );
 }

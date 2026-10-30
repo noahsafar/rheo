@@ -28,6 +28,20 @@ export default function Sources({ lab, files, state, dispatch, viewer }) {
 
       <NotebookPages lab={lab} viewer={viewer} pages={pages} dispatch={dispatch} />
 
+      <section className="card" aria-labelledby="slack-h">
+        <div className="card-head">
+          <h2 id="slack-h">Slack</h2>
+          <span className={`pill ${state.slack?.connected ? 'ok' : ''}`}>{state.slack?.connected ? 'Connected' : 'Not connected'}</span>
+        </div>
+        <p className="muted">
+          Rheo reads the lab's project channels, lets you log work with <code>/rheo</code>, and can post updates and slides
+          back to a channel.
+        </p>
+        <a className="btn small" href="#/slack">
+          {state.slack?.connected ? 'Open Slack' : 'Set up Slack'}
+        </a>
+      </section>
+
       <section className="card" aria-labelledby="labtools-h">
         <h2 id="labtools-h">Connected by the lab</h2>
         <p className="muted">
