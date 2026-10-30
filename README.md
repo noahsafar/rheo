@@ -113,4 +113,4 @@ Rheo doesn't store files, replace the lab notebook or decide inventorship. It do
 
 ## Next
 
-Pilot with one Yale lab against a baseline: time to file, follow-up requests per disclosure, share of records retrievable without contacting a former member, and members still confirming after three months.
+Pilot with one Yale lab against a baseline: time to file, follow-up requests per disclosure, share of records retrievable without contacting a former member, and members still logging and confirming after three months.
