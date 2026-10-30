@@ -17,6 +17,9 @@ Yale PIs who want to commercialize have to hand Yale Ventures a complete record 
 | Export follows the disclosure form | Yale Ventures can't keep up with follow-ups | Bob McGrath |
 | A person confirms every suggestion | Output you have to double-check saves no time | Candy Hwang |
 | Built before anyone asks, at about $2,400 per lab a year | The gap is invisible until a disclosure is due; new tools get abandoned | Bob McGrath |
+| Minimal friction for lab workers: dictate, or sync from existing tools; only "what I did" is required | Members won't take on a documentation burden | Lab members in testing |
+| As intuitive as taking notes, with no training | Students already keep notes in personal notebooks | Lab members in testing |
+| Flexible control over who sees each entry | In some labs, not everyone wants others to see their results | Lab members in testing |
 
 ## Divergence
 
@@ -34,9 +37,9 @@ We mapped options by who builds the record (people or software) and when (at dis
 
 ## How users reacted
 
-We showed sketches of all seven options to __ PIs with commercial intent, __ lab members and __ Yale Ventures staff, then mockups of the leading option.
+We showed sketches of all seven options to 3 PIs with commercial intent, 6 lab members and 1 Yale Ventures staff member, then mockups of the leading option.
 
-- **What resonated.** Numerous interviewees liked the deadlines tab, the way Rheo tracks people, and the projects tab: "Entering results for them to go under a project is good."
+- **What resonated.** Numerous interviewees liked the deadlines tab, the way Rheo tracks people, and the projects tab ("Entering results for them to go under a project is good"). One student valued having everything they did in one place. An undergraduate singled out the "how the lab does things" section of New to the lab: they don't want to bother their PhD mentor, so it lets them learn the lab's processes from previous members.
 - **What didn't.** Some people wanted members, not just the PI, to have a people tab so they can see each other's work and collaborate, noting that "in most labs the PI does a lot less." Other users, however, said that in some labs not everyone wants others to see their results and data. Some users also asked for a connection to Slack, which many labs use.
 - **What we learned.** Members, not the PI, are the daily users, and they will only log their work if it pays off for them, not just for the PI or Yale Ventures. So the prototype opens on a simple work log (what you did, the result, and whether it worked, filed under a project), and every entry feeds tools that save members time: lab meeting slides built from the entries they pick, a weekly update email for their PI, a methods draft for a paper or thesis, help with experiments that didn't work, preliminary data for grants, and a Jobs tab with CV entries, cover letters and bios. Instead of an all-or-nothing people tab, each entry has its own sharing setting (everyone, me and the head of the lab, or only me), so members can browse and build on what colleagues chose to share, filter for work similar to their own, and onboard through a "New to the lab" page built only from shared entries. We added Slack as a read-only source: Rheo reads the lab's project channels and suggests relevant messages as records for a person to confirm. Members can log work by typing /rheo in Slack, and Rheo can post updates and slides back to a channel.
 
@@ -44,7 +47,7 @@ We showed sketches of all seven options to __ PIs with commercial intent, __ lab
 
 We scored each option against the constraints (✓ meets, ◐ partly, ✗ fails). The connector layer is the only option with no failure, because it builds the record from work labs already do. The rest each fail at least one constraint outright: the template and notebook need habits that don't stick, offboarding alone never assembles a full package, the coordinator's cost grows with every lab, and the portal and AI assistant start after people have already left.
 
-The final design keeps A's checklist as the readiness score, C as the handoff flow, and D's export format and site license model.
+The final design keeps A's checklist as the readiness score, C as the handoff flow, and D's export format and site license model. From B it keeps only a light work log, because testing showed members will log when each entry pays them back.
 
 ## How Rheo works
 
