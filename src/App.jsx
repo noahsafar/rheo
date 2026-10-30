@@ -20,6 +20,10 @@ import Entries from './views/Entries.jsx';
 import Entry from './views/Entry.jsx';
 import Project from './views/Project.jsx';
 import Tools from './views/Tools.jsx';
+import Welcome from './views/Welcome.jsx';
+import Slack from './views/Slack.jsx';
+import Jobs from './views/Jobs.jsx';
+import { slackFiles } from './lib/slack.js';
 import { SAMPLE_LOGS } from './data/sampleLogs.js';
 import { labView, entryFiles, isPI, PI_ID } from './lib/workspace.js';
 
@@ -41,6 +45,7 @@ const initialState = {
   membersAdded: [], // people the PI added
   logs: SAMPLE_LOGS, // work members logged in Rheo (starts with synthetic sample entries)
   samplesV1: true,
+  slack: { connected: false, channels: [], posts: [] }, // the demo Slack connection
   pages: [], // notebook pages members photographed
   slides: {}, // meetingId -> { name, created }
   meetingsAdded: [],
@@ -108,6 +113,10 @@ function reducer(state, a) {
       return { ...state, membersAdded: [...state.membersAdded, a.member] };
     case 'addLog':
       return { ...state, logs: [...state.logs, a.entry] };
+    case 'slack':
+      return { ...state, slack: { ...(state.slack || {}), ...a.value } };
+    case 'slackPost':
+      return { ...state, slack: { ...state.slack, posts: [...(state.slack?.posts || []), ...a.posts] } };
     case 'updateLog':
       return { ...state, logs: state.logs.map((l) => (l.id === a.entry.id ? a.entry : l)) };
     case 'removeLog':
@@ -181,7 +190,7 @@ export default function App() {
   }, [state]);
 
   const L = useMemo(() => labView(lab, state), [state.membersAdded, state.inventionsAdded]);
-  const files = useMemo(() => [...effectiveFiles(L, state), ...entryFiles(state)], [L, state]);
+  const files = useMemo(() => [...effectiveFiles(L, state), ...entryFiles(state), ...slackFiles(state)], [L, state]);
   const records = useMemo(
     () => Object.fromEntries(L.inventions.map((i) => [i.id, buildRecord(L, files, state, i.id)])),
     [L, files, state]
@@ -214,6 +223,9 @@ export default function App() {
   else if (page === 'me') view = pi ? <Lab {...ctx} /> : <MyWork {...ctx} subject={viewer} />;
   else if (page === 'sources') view = <Sources {...ctx} />;
   else if (page === 'entries') view = <Entries key={route.join('/')} {...ctx} project={param} scope={route[2] || 'mine'} />;
+  else if (page === 'welcome') view = <Welcome {...ctx} />;
+  else if (page === 'jobs') view = <Jobs {...ctx} />;
+  else if (page === 'slack') view = <Slack {...ctx} channelId={param} />;
   else if (page === 'tools') view = <Tools key={param || 'hub'} {...ctx} toolId={param} />;
   else if (page === 'entry') view = <Entry key={param} {...ctx} id={param} />;
   else if (page === 'project' && L.inventions.some((i) => i.id === param))
@@ -224,15 +236,19 @@ export default function App() {
   // Four plain destinations for the PI, three for members. Everything else lives inside them.
   const nav = pi
     ? [
-        ['lab', 'Home', ['lab', 'me', 'digest', 'entries', 'entry', 'tools']],
+        ['lab', 'Home', ['lab', 'me', 'digest', 'entries', 'entry', 'tools', 'slack']],
         ['inventions', 'Inventions', ['inventions', 'invention', 'disclose']],
         ['people', 'My lab', labTabs],
         ['funding', 'Funding', ['funding']],
+        ['jobs', 'Jobs', ['jobs']],
+        ['welcome', 'New to the lab', ['welcome']],
       ]
     : [
-        ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project', 'tools']],
+        ['me', 'Home', ['me', 'sources', 'entries', 'entry', 'project', 'tools', 'slack']],
         ['meetings', 'Lab meetings', ['meetings']],
         ['deadlines', 'Deadlines', ['deadlines']],
+        ['jobs', 'Jobs', ['jobs']],
+        ['welcome', 'New to the lab', ['welcome']],
       ];
   const signIns = L.members.filter((m) => m.status !== 'left');
   const showLabTabs = pi && labTabs.includes(page) && !(page === 'people' && param);

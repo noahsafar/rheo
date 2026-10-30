@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { formatDate } from '../lib/record.js';
+import { isPI } from '../lib/workspace.js';
 import {
   did,
   result,
@@ -11,7 +12,15 @@ import {
 } from '../lib/entries.js';
 
 // Rows of work: date, what was done, what came of it. The date opens the full entry.
-export function WorkTable({ entries, lab, viewer, showWho = false, showProject = false, similar, caption }) {
+// Who can see one of my entries, in a word or two. For the head of the lab, "me and the head of the lab" is just "me".
+export function visibilityTag(e, viewer) {
+  const v = visibilityOf(e);
+  if (v === 'lab') return { id: 'lab', label: 'Everyone' };
+  if (v === 'private' || isPI(viewer.id)) return { id: 'private', label: 'Only me' };
+  return { id: 'pi', label: 'Me + head of lab' };
+}
+
+export function WorkTable({ entries, lab, viewer, showWho = false, showProject = false, showVisibility = false, similar, caption }) {
   const who = (id) => lab.members.find((m) => m.id === id);
   return (
     <div className="table-wrap">
@@ -22,10 +31,11 @@ export function WorkTable({ entries, lab, viewer, showWho = false, showProject =
             <th scope="col" className="wt-date">
               Date
             </th>
-            <th scope="col">What I did</th>
+            <th scope="col">{showWho ? 'What they did' : 'What I did'}</th>
             <th scope="col">Result</th>
             {showWho && <th scope="col">Who</th>}
             {showProject && <th scope="col">Project</th>}
+            {showVisibility && <th scope="col">Who can see</th>}
           </tr>
         </thead>
         <tbody>
@@ -44,7 +54,7 @@ export function WorkTable({ entries, lab, viewer, showWho = false, showProject =
                 </td>
                 <td>
                   <span className="wt-did">{did(e)}</span>
-                  {mine && v !== 'lab' && (
+                  {mine && v !== 'lab' && !showVisibility && (
                     <span className="vis-tag" title={v === 'private' ? 'Only you can see this' : 'Only you and the head of the lab'}>
                       {v === 'private' ? 'Only me' : 'Me + head of lab'}
                     </span>
@@ -64,6 +74,15 @@ export function WorkTable({ entries, lab, viewer, showWho = false, showProject =
                 </td>
                 {showWho && <td className="wt-who">{mine ? 'Me' : person?.name ?? 'Someone'}</td>}
                 {showProject && <td className="wt-proj">{inv?.short ?? 'Other lab work'}</td>}
+                {showVisibility && (
+                  <td className="wt-vis">
+                    {mine ? (
+                      <span className={`vis-badge vis-${visibilityTag(e, viewer).id}`}>{visibilityTag(e, viewer).label}</span>
+                    ) : (
+                      <span className="muted">Shared with you</span>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -136,6 +155,7 @@ export function ProjectWorkLog({ lab, state, viewer, pi, inv, limit = 10 }) {
           lab={lab}
           viewer={viewer}
           showWho={scope === 'lab'}
+          showVisibility={scope === 'mine'}
           similar={scope === 'lab' ? similar : null}
           caption={`Work on ${inv.short}`}
         />
@@ -171,7 +191,7 @@ export function RecentEntries({ lab, state, viewer, pi, limit = 10 }) {
       {mine.length === 0 ? (
         <p className="empty muted">Nothing logged yet. Tap the + button at the bottom right to add what you did.</p>
       ) : (
-        <WorkTable entries={mine.slice(0, limit)} lab={lab} viewer={viewer} showProject caption="My recent work" />
+        <WorkTable entries={mine.slice(0, limit)} lab={lab} viewer={viewer} showProject showVisibility caption="My recent work" />
       )}
       {mine.length > limit && (
         <p className="see-all">

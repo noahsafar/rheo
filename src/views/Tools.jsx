@@ -12,7 +12,11 @@ import {
   troubleshoot,
   projectTimeline,
   interpret,
+  grantDraft,
 } from '../lib/tools.js';
+import { grants } from '../data/workspace.js';
+import { PostToSlack } from './Slack.jsx';
+import { JobsBody } from './Jobs.jsx';
 
 const minusDays = (iso, n) => {
   const d = new Date(iso + 'T12:00');
@@ -31,7 +35,7 @@ export function RheoDoesIt() {
       <ul className="tool-grid">
         {TOOLS.map((t) => (
           <li key={t.id}>
-            <a className={`tool-card ${t.id === 'ask' ? 'ask' : ''}`} href={`#/tools/${t.id}`}>
+            <a className={`tool-card ${t.id === 'ask' ? 'ask' : ''}`} href={t.href || `#/tools/${t.id}`}>
               <ToolIcon name={t.icon} />
               <strong>{t.title}</strong>
               <span className="muted small">{t.blurb}</span>
@@ -75,7 +79,7 @@ export default function Tools({ lab, state, dispatch, viewer, pi, toolId }) {
         Other things Rheo can do:{' '}
         {TOOLS.filter((t) => t.id !== tool.id).map((t, i, xs) => (
           <span key={t.id}>
-            <a href={`#/tools/${t.id}`}>{t.title.toLowerCase()}</a>
+            <a href={t.href || `#/tools/${t.id}`}>{t.title.toLowerCase()}</a>
             {i < xs.length - 1 ? ', ' : '.'}
           </span>
         ))}
@@ -90,10 +94,12 @@ function ToolBody({ id, ctx, prefill }) {
   if (id === 'methods') return <Methods {...ctx} prefill={prefill} />;
   if (id === 'troubleshoot') return <Troubleshoot {...ctx} prefill={prefill} />;
   if (id === 'timeline') return <Timeline {...ctx} prefill={prefill} />;
+  if (id === 'grant') return <Grant {...ctx} prefill={prefill} />;
+  if (id === 'job') return <JobsBody {...ctx} />;
   return <Ask {...ctx} />;
 }
 
-const useMine = (state, viewer, pi) =>
+export const useMine = (state, viewer, pi) =>
   useMemo(() => visibleEntries(state, viewer, pi).filter((e) => e.owner === viewer.id), [state.logs, viewer.id, pi]);
 
 const myProjects = (lab, viewer, pi) =>
@@ -290,6 +296,18 @@ function Slides({ lab, state, dispatch, viewer, pi, prefill }) {
                   {attached === meeting.id ? `Attached to ${formatDate(meeting.date, { month: 'short', day: 'numeric' })}` : `Attach to the ${formatDate(meeting.date, { month: 'short', day: 'numeric' })} lab meeting`}
                 </button>
               )}
+              {chosen.length > 0 && (
+                <PostToSlack
+                  lab={lab}
+                  state={state}
+                  dispatch={dispatch}
+                  viewer={viewer}
+                  defaultChannel="marsh-lab"
+                  text={`${meeting ? `Slides for the ${formatDate(meeting.date, { month: 'short', day: 'numeric' })} lab meeting` : 'Slides'}: ${outline.title} (${outline.slides.length} slides, from ${chosen.length} entries).`}
+                  link="#/meetings"
+                  linkLabel="Lab meeting schedule"
+                />
+              )}
               <span className="muted small">Opens in PowerPoint, Keynote or Google Slides. Add figures and next steps before you present.</span>
             </div>
           </>
@@ -354,7 +372,7 @@ function SlidePreview({ s }) {
 }
 
 // ---------- text outputs (update, methods, timeline) ----------
-function Output({ text, fileName, mailto, note }) {
+export function Output({ text, fileName, mailto, note, slack }) {
   const [edited, setEdited] = useState(null);
   const [copied, setCopied] = useState(false);
   const value = edited ?? text;
@@ -409,13 +427,14 @@ function Output({ text, fileName, mailto, note }) {
         >
           Download
         </button>
+        {slack && <PostToSlack {...slack} text={value} />}
       </div>
     </section>
   );
 }
 
 // ---------- 2. weekly update ----------
-function Update({ lab, state, viewer, pi, prefill }) {
+function Update({ lab, state, dispatch, viewer, pi, prefill }) {
   const today = lab.lab.today;
   const [days, setDays] = useState(String(prefill?.days || 7));
   const mine = useMine(state, viewer, pi);
@@ -450,6 +469,7 @@ function Update({ lab, state, viewer, pi, prefill }) {
               }
             : null
         }
+        slack={{ lab, state, dispatch, viewer }}
         note={`Fill in "Next week" before you send.${pi ? '' : ` Open in email starts a message to ${lab.lab.pi} in your email app; nothing is sent until you press send.`}`}
       />
     </>
@@ -516,7 +536,7 @@ function Troubleshoot({ lab, state, viewer, pi }) {
 }
 
 // ---------- 5. timeline ----------
-function Timeline({ lab, state, viewer, pi, prefill }) {
+function Timeline({ lab, state, dispatch, viewer, pi, prefill }) {
   const projects = myProjects(lab, viewer, pi);
   const [invId, setInvId] = useState(prefill?.invention || projects[0]?.id || '');
   const [scope, setScope] = useState('mine');
@@ -561,7 +581,98 @@ function Timeline({ lab, state, viewer, pi, prefill }) {
       <p className="muted">
         Built from {entries.length} {entries.length === 1 ? 'entry' : 'entries'}.
       </p>
-      <Output text={text} fileName={`timeline-${invId || 'other'}.txt`} />
+      <Output
+        text={text}
+        fileName={`timeline-${invId || 'other'}.txt`}
+        slack={{ lab, state, dispatch, viewer, defaultChannel: invId === 'inv1' ? 'hydrogel' : invId === 'inv2' ? 'sweat-patch' : 'marsh-lab' }}
+      />
+    </>
+  );
+}
+
+// ---------- before anything leaves the lab ----------
+// Sending details of an undisclosed invention outside the lab can limit patent rights.
+export function DisclosureWarning({ lab, state, invIds, what }) {
+  const pending = lab.inventions.filter((i) => invIds.includes(i.id) && !state.sent?.[i.id]);
+  if (!pending.length) return null;
+  return (
+    <div className="found warn">
+      <p className="found-label">Check with Yale Ventures before you send this</p>
+      <p>
+        {pending.map((i) => i.short).join(' and ')} {pending.length > 1 ? "haven't" : "hasn't"} been disclosed to Yale Ventures yet.
+        Details in {what} can count as sharing the invention publicly, which can limit patents. Keep it general, or{' '}
+        <a href={`#/disclose/${pending[0].id}`}>disclose it first</a>.
+      </p>
+    </div>
+  );
+}
+
+// ---------- grant: preliminary data ----------
+function Grant({ lab, state, viewer, pi, prefill }) {
+  const projects = myProjects(lab, viewer, pi);
+  const [invId, setInvId] = useState(prefill?.invention || projects[0]?.id || '');
+  const linked = grants.filter((g) => g.inventions.includes(invId));
+  const [grantId, setGrantId] = useState('');
+  const [scope, setScope] = useState('lab');
+  const [range, setRange] = useState(prefill?.days ? nearestRange(prefill.days) : 'any');
+  const all = useMemo(() => visibleEntries(state, viewer, pi), [state.logs, viewer.id, pi]);
+  const days = range === 'any' ? null : Number(range);
+  const entries = all.filter(
+    (e) => (e.invention || '') === invId && (scope === 'lab' || e.owner === viewer.id) && inRange(e, days, lab.lab.today)
+  );
+  const grant = grants.find((g) => g.id === grantId);
+  const { text } = grantDraft({ lab, state, entries, invId, grant });
+  return (
+    <>
+      <div className="field-row">
+        <label className="field">
+          <span>Project</span>
+          <select value={invId} onChange={(e) => { setInvId(e.target.value); setGrantId(''); }}>
+            {projects.map((i) => (
+              <option key={i.id} value={i.id}>
+                {invName(state, i)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Builds on a current grant? (optional)</span>
+          <select value={grantId} onChange={(e) => setGrantId(e.target.value)}>
+            <option value="">Don't mention one</option>
+            {(linked.length ? linked : grants).map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.sponsor}: {g.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Whose work</span>
+          <select value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="lab">Everything shared with me</option>
+            <option value="mine">Just mine</option>
+          </select>
+        </label>
+        <label className="field">
+          <span>Date</span>
+          <select value={range} onChange={(e) => setRange(e.target.value)}>
+            {DATE_RANGES.filter((r) => r.id !== 'custom').map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="muted">
+        Built from {entries.length} {entries.length === 1 ? 'entry' : 'entries'}. Only entries shared with you are used, never anyone's "Only me" entries.
+      </p>
+      <DisclosureWarning lab={lab} state={state} invIds={[invId]} what="a grant application" />
+      <Output
+        text={text}
+        fileName={`preliminary-data-${invId}.txt`}
+        note="A starting point: add figures, statistics and citations, and match the funder's page limits."
+      />
     </>
   );
 }
@@ -569,6 +680,8 @@ function Timeline({ lab, state, viewer, pi, prefill }) {
 // ---------- 6. tell Rheo what you need ----------
 const EXAMPLES = [
   'Make slides from my last 2 weeks on the hydrogel',
+  'Preliminary data for a grant on the sweat patch',
+  'Help with my CV for a postdoc application',
   'Email my PI an update on this week',
   "What didn't work this month?",
   'Summarize the sweat patch for my committee',
@@ -654,7 +767,7 @@ function Ask(ctx) {
           {matches.length > 0 && <WorkTable entries={matches} lab={lab} viewer={viewer} showProject caption="Matching entries" />}
           <div className="tool-actions">
             {TOOLS.filter((t) => t.id !== 'ask').map((t) => (
-              <a key={t.id} className="btn small" href={`#/tools/${t.id}`}>
+              <a key={t.id} className="btn small" href={t.href || `#/tools/${t.id}`}>
                 {t.title}
               </a>
             ))}
@@ -693,6 +806,18 @@ function ToolIcon({ name }) {
       </>
     ),
     chat: <path d="M4 5h16v11H9l-5 4z M8 10h8 M8 13h5" {...p} />,
+    grant: (
+      <>
+        <path d="M6 3h9l4 4v14H6z" {...p} />
+        <path d="M15 3v4h4M9 12h7M9 16h5" {...p} />
+      </>
+    ),
+    job: (
+      <>
+        <rect x="3" y="7" width="18" height="13" rx="2" {...p} />
+        <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18" {...p} />
+      </>
+    ),
   };
   return (
     <svg className="tool-icon" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">

@@ -36,15 +36,31 @@ Then open the address it prints (usually http://localhost:5173).
 
 ### Disclose an idea
 
-The PI's main action, always one click away in the header. Six plain questions, one per screen: what the idea is, who worked on it, when it started, who has seen it, who paid for it, then check and send. Rheo fills in what it already knows from the lab's records, every question accepts "I'm not sure", and answers save as you go. The PI never gathers files: Rheo attaches the evidence and lists anything Yale Ventures may ask about.
+The PI's main action, always one click away in the header. Six plain questions, one per screen: what the idea is, who worked on it, when it started, who has seen it, who paid for it, then check and send. Rheo fills in what it already knows from the lab's records, every question accepts "I'm not sure", and answers save as you go. The PI never gathers files: Rheo attaches the evidence and lists anything Yale Ventures may ask about. With "Suggest answers from the team's work entries" on, each question also shows suggestions drawn from what the team logged, linked to the entries they came from.
 
-The PI's header has four items: **Home** (what needs them this week), **Inventions**, **My lab** (people, lab meetings, deadlines, people leaving) and **Funding**. Members get **Home**, **Lab meetings** and **Deadlines**, plus a **Log work** button.
+The PI's header has **Home** (what needs them this week), **Inventions**, **My lab** (people, lab meetings, deadlines, people leaving), **Funding**, **Jobs** and **New to the lab**. Members get **Home**, **Lab meetings**, **Deadlines**, **Jobs** and **New to the lab**, plus a **Log work** button. A round **+** button on every screen opens the same work entry form.
+
+### Work log: what members get out of it
+
+Members only keep logging if it pays off for them, so every entry feeds tools they use.
+
+| Screen | What it does |
+|---|---|
+| Log work | Leads every home page. Only "What did you do?" is required; result, did it work, process used and time taken are optional and can be added later. Speak instead of typing. Each entry is shared with everyone in the lab, only the author and the PI, or only the author |
+| Project pages | Date / What I did / Result rows, mine or the whole lab, with "Only show work similar to mine". Click a date to open the full entry |
+| All entries | Filter by person, date, type of work, whether it worked, project and similar to mine |
+| Rheo does it for you | Lab meeting slides (real PowerPoint, attach to your lab meeting), weekly update email, methods draft, help with what didn't work, project summary over time, grant preliminary data, and "Tell Rheo what you need" |
+| Jobs | CV entry, research summary, cover letter paragraph, short bio and a skills list, from your own entries |
+| New to the lab | Who's who, and per project: latest updates, how the lab does things and who to ask, what was tried and didn't work, open ideas. Built only from entries shared with the whole lab |
+| Slack | Pick channels Rheo may read; messages about the work become suggested records. Log work with `/rheo` in any channel; post updates and slides back. The workspace is simulated |
+
+Everything Rheo writes is built only from what the entries say. "Only me" entries never reach anyone else, the lab record or disclosure suggestions.
 
 ### Lab workspace: two kinds of account
 
 Use **See Rheo as** in the dark strip at the top to switch between the PI and any lab member. In the real product the NetID sign-in decides this.
 
-**Lab members see only their own work:**
+**Lab members see their own work, plus entries colleagues shared with the lab:**
 
 | Screen | What it does |
 |---|---|
